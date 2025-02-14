@@ -11,12 +11,12 @@
 /* Mobile App Container */
 .form-container {
   width: 100%;
-  max-width: 440px;
+  max-width: 600px;
   min-height: 100vh;
   margin: 0 auto;
   background: var(--gray-light);
   position: relative;
-  padding-bottom: 24px;
+  padding: 24px;
 }
 
 /* Mobile Status Bar & Header */
@@ -83,6 +83,7 @@
 /* Form Fields */
 .input-group {
   margin-bottom: 24px;
+  width: 100%;
   position: relative;
 }
 
@@ -168,6 +169,9 @@ input[type="date"] {
   color: var(--secondary-color);
   background-color: var(--white);
   outline: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 2H4C2.89543 2 2 2.89543 2 4V12C2 13.1046 2.89543 14 4 14H12C13.1046 14 14 13.1046 14 12V4C14 2.89543 13.1046 2 12 2Z' stroke='%231C2655' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
 }
 
 /* Override default date input styles */
@@ -176,12 +180,9 @@ input[type="date"]::-webkit-datetime-edit {
   margin: 0;
 }
 
+/* Hide the default calendar icon */
 input[type="date"]::-webkit-calendar-picker-indicator {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0;  /* Hide default calendar icon */
+  opacity: 0;
 }
 
 /* Custom calendar icon positioning */
@@ -250,6 +251,25 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .form-container {
     padding: 40px;
   }
+
+  .form-content {
+    padding: 40px;
+  }
+
+  .form-section {
+    padding: 32px;
+  }
+
+  .form-input,
+  .form-select {
+    height: 50px;
+    font-size: 18px;
+  }
+
+  .button {
+    padding: 14px 28px;
+    font-size: 18px;
+  }
 }
 
 /* Account Info */
@@ -283,14 +303,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   overflow-y: auto;
   z-index: 1000;
   box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.05);
+  padding: 0;
+  list-style: none;
 }
 
 .client-dropdown-item {
   padding: 12px 16px;
   cursor: pointer;
-  border-bottom: 1px solid var(--gray-border);
   color: var(--secondary-color);
   font-size: 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--gray-border);
 }
 
 .client-dropdown-item:last-child {
@@ -314,6 +337,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* Card Sections - Adjusted padding */
 .form-section {
+  display: flex;
+  flex-direction: column;
   background: var(--white);
   border-radius: 12px;
   padding: 24px;

@@ -57,6 +57,7 @@ const NewProjectForm = () => {
   const [statusMessage, setStatusMessage] = useState('');
   const [documentUrl, setDocumentUrl] = useState(null);
   const [pricing, setPricing] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleClientSearch = async (searchTerm) => {
     if (searchTerm.trim() === '') {
@@ -100,6 +101,7 @@ const NewProjectForm = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
+      setIsLoading(true);
       // Validate all required fields
       if (!projectName.trim()) {
         throw new Error('Project name is required.');
@@ -219,6 +221,8 @@ const NewProjectForm = () => {
         stack: error.stack,
         response: error.response?.data
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -357,6 +361,7 @@ const NewProjectForm = () => {
               className="form-input"
               value={msaDate} 
               onChange={(e) => setMsaDate(e.target.value)} 
+              required 
             />
           </div>
 
@@ -479,8 +484,8 @@ const NewProjectForm = () => {
           </div>
         )}
 
-        <button type="submit" className="form-button">
-          Create Project
+        <button type="submit" className="form-button" disabled={isLoading}>
+          {isLoading ? 'Processing...' : 'Create Project'}
         </button>
 
         {statusMessage && (
