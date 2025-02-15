@@ -1,15 +1,59 @@
 import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 const API_TOKEN = process.env.REACT_APP_SCOPSTACK_API_TOKEN;
 const ACCOUNT_SLUG = process.env.REACT_APP_SCOPSTACK_ACCOUNT_SLUG;
+const REFRESH_TOKEN_URL = 'https://app.scopestack.io/oauth/token'; // Updated refresh URL
+
+let accessToken = API_TOKEN; // Initial access token
+let refreshToken = localStorage.getItem('refreshToken'); // Retrieve refresh token from storage
 
 const apiScoped = axios.create({
   baseURL: `https://api.scopestack.io/${ACCOUNT_SLUG}`,
   headers: {
-    Authorization: `Bearer ${API_TOKEN}`,
+    Authorization: `Bearer ${accessToken}`,
     "Content-Type": "application/vnd.api+json",
   },
 });
+
+// Function to refresh the access token
+const refreshAccessToken = async () => {
+  try {
+    const response = await axios.post(REFRESH_TOKEN_URL, {
+      grant_type: 'refresh_token', // Specify the grant type
+      refresh_token: refreshToken, // Include the refresh token
+    });
+    accessToken = response.data.access_token; // Update access token
+    refreshToken = response.data.refresh_token; // Update refresh token if provided
+    localStorage.setItem('refreshToken', refreshToken); // Store new refresh token
+    return accessToken;
+  } catch (error) {
+    console.error('Failed to refresh access token:', error);
+    throw error; // Handle error appropriately
+  }
+};
+
+// Axios request interceptor
+apiScoped.interceptors.request.use(
+  async (config) => {
+    // Check if the access token is expired
+    if (isTokenExpired(accessToken)) {
+      accessToken = await refreshAccessToken(); // Refresh token if expired
+      config.headers.Authorization = `Bearer ${accessToken}`; // Update the header with the new token
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Function to check if the token is expired
+const isTokenExpired = (token) => {
+  if (!token) return true; // If no token, consider it expired
+  const decoded = jwtDecode(token);
+  return decoded.exp * 1000 < Date.now(); // Check if the token is expired
+};
 
 // ✅ Get Current User & Account Info
 export const getCurrentUserAndAccount = async () => {
