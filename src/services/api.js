@@ -469,4 +469,41 @@ export const fetchProjectPricing = async (projectId) => {
   }
 };
 
+export const generateContentWithAI = async (inputText) => {
+  const API_KEY = process.env.REACT_APP_GEMINI_API_KEY; // Access your API key
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+
+  try {
+    const response = await axios.post(url, {
+      contents: [{
+        parts: [{ text: inputText }]
+      }]
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+
+    return response.data; // Return the response data
+  } catch (error) {
+    console.error('Error generating content with AI:', error);
+    throw error; // Handle error appropriately
+  }
+};
+
+export const fetchProjectServices = async (projectId) => {
+  try {
+    const response = await axios.get(`https://api.scopestack.io/scopestack-demo/v1/project-services`, {
+      params: {
+        'filter[project]': projectId,
+        'filter[active]': true,
+      },
+    });
+    return response.data; // Return the services data
+  } catch (error) {
+    console.error('Error fetching project services:', error);
+    throw error; // Handle error appropriately
+  }
+};
+
 export default apiScoped;

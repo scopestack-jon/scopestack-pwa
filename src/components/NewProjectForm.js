@@ -11,8 +11,13 @@ import {
   executeSurveyWorkflow,
   executeDocumentWorkflow,
   fetchProjectPricing,
+  generateContentWithAI,
+  fetchProjectServices,
 } from '../services/api';
 import './NewProjectForm.css';
+import ExecutiveSummary from './ExecutiveSummary';
+
+const API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
 
 const NewProjectForm = () => {
   const [projectName, setProjectName] = useState('');
@@ -58,6 +63,10 @@ const NewProjectForm = () => {
   const [documentUrl, setDocumentUrl] = useState(null);
   const [pricing, setPricing] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const [projectServices, setProjectServices] = useState([]);
+  const [executiveSummary, setExecutiveSummary] = useState('');
+  const [showSummary, setShowSummary] = useState(false);
 
   const handleClientSearch = async (searchTerm) => {
     if (searchTerm.trim() === '') {
@@ -205,6 +214,24 @@ const NewProjectForm = () => {
         const projectPricing = await fetchProjectPricing(project.data.id);
         setPricing(projectPricing);
 
+        // Fetch associated professional services after project creation
+        try {
+          const services = await fetchProjectServices(project.data.id);
+          setProjectServices(services);
+        } catch (error) {
+          console.error('Failed to fetch project services:', error);
+        }
+
+        // Generate executive summary using AI
+        try {
+          const summaryResponse = await generateContentWithAI("Explain how AI works"); // Replace with your input
+          console.log('Generated Summary:', summaryResponse);
+          setExecutiveSummary(summaryResponse);
+          setShowSummary(true);
+        } catch (error) {
+          console.error('Failed to generate summary:', error);
+        }
+
         // Reset form
         setProjectName('');
         setClientName('');
@@ -224,6 +251,10 @@ const NewProjectForm = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleCloseSummary = () => {
+    setShowSummary(false);
   };
 
   useEffect(() => {
@@ -537,6 +568,10 @@ const NewProjectForm = () => {
           </div>
         )}
       </form>
+
+      {showSummary && (
+        <ExecutiveSummary summary={executiveSummary} onClose={handleCloseSummary} />
+      )}
     </div>
   );
 };
