@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   searchClients,
   fetchQuestionnaires,
@@ -16,8 +16,6 @@ import {
 } from '../services/api';
 import './NewProjectForm.css';
 import ExecutiveSummary from './ExecutiveSummary';
-
-const API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
 
 const NewProjectForm = () => {
   const [projectName, setProjectName] = useState('');
@@ -67,6 +65,10 @@ const NewProjectForm = () => {
   const [projectServices, setProjectServices] = useState([]);
   const [executiveSummary, setExecutiveSummary] = useState('');
   const [showSummary, setShowSummary] = useState(false);
+
+  const [projectId, setProjectId] = useState(null);
+
+  const [loading, setLoading] = useState(false);
 
   const handleClientSearch = async (searchTerm) => {
     if (searchTerm.trim() === '') {
@@ -218,18 +220,49 @@ const NewProjectForm = () => {
         try {
           const services = await fetchProjectServices(project.data.id);
           setProjectServices(services);
-        } catch (error) {
-          console.error('Failed to fetch project services:', error);
-        }
+          console.log('Fetched Services:', services);
 
-        // Generate executive summary using AI
-        try {
-          const summaryResponse = await generateContentWithAI("Explain how AI works"); // Replace with your input
-          console.log('Generated Summary:', summaryResponse);
-          setExecutiveSummary(summaryResponse);
+          // Access the services array correctly
+          const serviceDescriptions = services.data.map(service => ({
+            recipe_name: service.attributes.name,
+            ingredients: service.attributes['service-description'].split('. '),
+          }));
+
+          // Define the questionnaire answers (replace with actual data)
+          const questionnaireAnswers = {
+            clientOverview: "Brief description of the client's business and industry.",
+            engagementObjectives: "Specific goals the client aims to achieve.",
+            keyFindings: "Critical insights gathered from discovery.",
+            proposedSolution: "Recommended services and methodologies.",
+            businessImpact: "Expected business impact and success metrics.",
+            nextSteps: "Implementation plan and key milestones."
+          };
+
+          // Create a detailed prompt for the AI model
+          const prompt = `Generate an executive summary for a professional services engagement. The summary should be concise yet comprehensive, clearly outlining the business objectives, key challenges, proposed solutions, and expected outcomes. Use structured data from the discovery questionnaires to provide specific insights into the client's needs, operational constraints, and strategic goals.
+
+The summary should include the following sections:
+
+Client Overview – Briefly describe the client's business, industry, and relevant background.
+Engagement Objectives – Define the specific goals the client aims to achieve through this engagement, linking them to measurable business outcomes.
+Key Findings from Discovery – Highlight critical insights gathered from discovery, including pain points, inefficiencies, or opportunities for improvement. Use relevant quantitative and qualitative data.
+Proposed Solution & Approach – Outline the recommended services, methodologies, and frameworks that will be applied to address the client's challenges.
+Business Impact & Success Metrics – Explain the expected business impact, KPIs, and success measures that will determine the effectiveness of the engagement.
+Next Steps & Timeline – Summarize the implementation plan, key milestones, and next steps to ensure alignment with the client's priorities.
+
+Use a professional, results-oriented tone and ensure clarity in articulating the value proposition. Keep the focus on strategic outcomes rather than technical details, making it accessible to executive stakeholders.
+
+Client Name: ${clientName}
+Questionnaire Answers: ${JSON.stringify(questionnaireAnswers, null, 2)}
+Recommended Services: ${JSON.stringify(serviceDescriptions, null, 2)}`;
+
+          // Generate executive summary using AI
+          const summary = await generateContentWithAI(prompt);
+          console.log('Generated Summary:', summary);
+          setExecutiveSummary(summary);
           setShowSummary(true);
         } catch (error) {
-          console.error('Failed to generate summary:', error);
+          console.error('Failed to fetch project services:', error);
         }
 
         // Reset form
@@ -240,6 +273,7 @@ const NewProjectForm = () => {
         setAnswers({});
         setMsaDate('');
         setSelectedClient(null);
+        setProjectId(project.data.id);
       }
     } catch (error) {
       console.error('Error in form submission:', error);
@@ -294,6 +328,38 @@ const NewProjectForm = () => {
     };
     loadQuestions();
   }, [selectedQuestionnaire]);
+
+  // Use useCallback to memoize loadProjectServices
+  const loadProjectServices = useCallback(async (projectId) => {
+    try {
+      const services = await fetchProjectServices(projectId);
+      setProjectServices(services);
+      console.log('Fetched Services:', services);
+
+      // Access the services array correctly
+      const serviceDescriptions = services.data.map(service => ({
+        recipe_name: service.attributes.name,
+        ingredients: service.attributes['service-description'].split('. '),
+      }));
+
+      // Create a prompt for the AI model
+      const prompt = `Generate an executive summary for the client ${clientName} based on the following services:\n${JSON.stringify(serviceDescriptions)}`;
+
+      // Generate executive summary using AI
+      const summary = await generateContentWithAI(prompt);
+      console.log('Generated Summary:', summary);
+      setExecutiveSummary(summary);
+      setShowSummary(true);
+    } catch (error) {
+      console.error('Failed to fetch project services:', error);
+    }
+  }, [clientName]);
+
+  useEffect(() => {
+    if (projectId) {
+      loadProjectServices(projectId);
+    }
+  }, [projectId, loadProjectServices]);
 
   return (
     <div className="form-container">
@@ -515,8 +581,8 @@ const NewProjectForm = () => {
           </div>
         )}
 
-        <button type="submit" className="form-button" disabled={isLoading}>
-          {isLoading ? 'Processing...' : 'Create Project'}
+        <button type="submit" className="form-button" disabled={loading}>
+          {loading ? 'Processing...' : 'Create Project'}
         </button>
 
         {statusMessage && (
@@ -565,6 +631,17 @@ const NewProjectForm = () => {
                 }).format(pricing.margin / 100)}
               </span>
             </div>
+          </div>
+        )}
+
+        {projectServices.length > 0 && (
+          <div>
+            <h3>Project Services</h3>
+            <ul>
+              {projectServices.map(service => (
+                <li key={service.id}>{service.attributes.name}</li>
+              ))}
+            </ul>
           </div>
         )}
       </form>

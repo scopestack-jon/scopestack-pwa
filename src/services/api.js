@@ -3,6 +3,7 @@ import { jwtDecode } from 'jwt-decode';
 
 const API_TOKEN = process.env.REACT_APP_SCOPSTACK_API_TOKEN;
 const ACCOUNT_SLUG = process.env.REACT_APP_SCOPSTACK_ACCOUNT_SLUG;
+const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
 const REFRESH_TOKEN_URL = 'https://app.scopestack.io/oauth/token'; // Updated refresh URL
 
 let accessToken = API_TOKEN; // Initial access token
@@ -26,6 +27,10 @@ const refreshAccessToken = async () => {
     accessToken = response.data.access_token; // Update access token
     refreshToken = response.data.refresh_token; // Update refresh token if provided
     localStorage.setItem('refreshToken', refreshToken); // Store new refresh token
+
+    // Update the Authorization header for apiScoped
+    apiScoped.defaults.headers.Authorization = `Bearer ${accessToken}`;
+
     return accessToken;
   } catch (error) {
     console.error('Failed to refresh access token:', error);
@@ -469,31 +474,37 @@ export const fetchProjectPricing = async (projectId) => {
   }
 };
 
+// Example function using GEMINI_API_KEY
 export const generateContentWithAI = async (inputText) => {
-  const API_KEY = process.env.REACT_APP_GEMINI_API_KEY; // Access your API key
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
   try {
     const response = await axios.post(url, {
       contents: [{
-        parts: [{ text: inputText }]
-      }]
+        parts: [{ text: inputText }],
+      }],
     }, {
       headers: {
         'Content-Type': 'application/json',
-      }
+      },
     });
 
-    return response.data; // Return the response data
+    // Log the entire response to inspect its structure
+    console.log('AI API Response:', response.data);
+
+    // Extract the summary text from the response
+    const summary = response.data.candidates[0].content.parts[0].text; // Access the text property
+    return summary;
   } catch (error) {
-    console.error('Error generating content with AI:', error);
-    throw error; // Handle error appropriately
+    console.error('Error generating content with AI:', error.response ? error.response.data : error.message);
+    throw error;
   }
 };
 
+// Fetch Project Services
 export const fetchProjectServices = async (projectId) => {
   try {
-    const response = await axios.get(`https://api.scopestack.io/scopestack-demo/v1/project-services`, {
+    const response = await apiScoped.get('/v1/project-services', {
       params: {
         'filter[project]': projectId,
         'filter[active]': true,
@@ -501,8 +512,8 @@ export const fetchProjectServices = async (projectId) => {
     });
     return response.data; // Return the services data
   } catch (error) {
-    console.error('Error fetching project services:', error);
-    throw error; // Handle error appropriately
+    console.error('Error fetching project services:', error.response ? error.response.data : error.message);
+    throw error;
   }
 };
 

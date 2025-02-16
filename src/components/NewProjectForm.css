@@ -424,4 +424,18 @@ select.form-input option:first-child {
 
 .pricing-value.profit {
   color: #418172;  /* Green for profit */
+}
+
+.executive-summary-container {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  max-height: 300px; /* Set a max height for scrolling */
+  overflow-y: auto; /* Enable vertical scrolling */
+}
+
+.executive-summary-content {
+  max-height: 100%; /* Ensure content fits within the container */
 } 
