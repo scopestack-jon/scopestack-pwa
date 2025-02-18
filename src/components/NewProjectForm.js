@@ -331,6 +331,7 @@ Recommended Services: ${JSON.stringify(serviceDescriptions, null, 2)}`;
 
   // Use useCallback to memoize loadProjectServices
   const loadProjectServices = useCallback(async (projectId) => {
+    setIsLoading(true);
     try {
       const services = await fetchProjectServices(projectId);
       setProjectServices(services);
@@ -352,6 +353,8 @@ Recommended Services: ${JSON.stringify(serviceDescriptions, null, 2)}`;
       setShowSummary(true);
     } catch (error) {
       console.error('Failed to fetch project services:', error);
+    } finally {
+      setIsLoading(false);
     }
   }, [clientName]);
 
@@ -581,8 +584,8 @@ Recommended Services: ${JSON.stringify(serviceDescriptions, null, 2)}`;
           </div>
         )}
 
-        <button type="submit" className="form-button" disabled={loading}>
-          {loading ? 'Processing...' : 'Create Project'}
+        <button type="submit" className="form-button" disabled={isLoading}>
+          {isLoading ? 'Processing...' : 'Create Project'}
         </button>
 
         {statusMessage && (
