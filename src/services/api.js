@@ -474,6 +474,22 @@ export const fetchProjectPricing = async (projectId) => {
   }
 };
 
+// Fetch Project Services
+export const fetchProjectServices = async (projectId) => {
+  try {
+    const response = await apiScoped.get('/v1/project-services', {
+      params: {
+        'filter[project]': projectId,
+        'filter[active]': true,
+      },
+    });
+    return response.data; // Return the services data
+  } catch (error) {
+    console.error('Error fetching project services:', error.response ? error.response.data : error.message);
+    throw error;
+  }
+};
+
 // Example function using GEMINI_API_KEY
 export const generateContentWithAI = async (inputText) => {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -501,20 +517,6 @@ export const generateContentWithAI = async (inputText) => {
   }
 };
 
-// Fetch Project Services
-export const fetchProjectServices = async (projectId) => {
-  try {
-    const response = await apiScoped.get('/v1/project-services', {
-      params: {
-        'filter[project]': projectId,
-        'filter[active]': true,
-      },
-    });
-    return response.data; // Return the services data
-  } catch (error) {
-    console.error('Error fetching project services:', error.response ? error.response.data : error.message);
-    throw error;
-  }
-};
+
 
 export default apiScoped;

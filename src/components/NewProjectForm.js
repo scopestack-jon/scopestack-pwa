@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   searchClients,
   fetchQuestionnaires,
@@ -68,7 +68,7 @@ const NewProjectForm = () => {
 
   const [projectId, setProjectId] = useState(null);
 
-  const [loading, setLoading] = useState(false);
+  const executiveSummaryGeneratedRef = useRef(false);
 
   const handleClientSearch = async (searchTerm) => {
     if (searchTerm.trim() === '') {
@@ -133,7 +133,6 @@ const NewProjectForm = () => {
       if (selectedClient) {
         clientId = selectedClient.id;
       } else if (clientName.trim()) {
-        // Create new client if name is provided
         const newClient = await createClient(clientName, accountId);
         clientId = newClient.data.id;
       } else {
@@ -176,10 +175,8 @@ const NewProjectForm = () => {
         }
       };
 
-      // Debug logging
-      console.log('Project Data Being Sent:', JSON.stringify(projectData, null, 2));
-
       const project = await createProject(projectData);
+      setProjectId(project.data.id);
       setStatusMessage('Project created. Processing survey...');
 
       if (project.data && project.data.id) {
@@ -217,71 +214,29 @@ const NewProjectForm = () => {
         setPricing(projectPricing);
 
         // Fetch associated professional services after project creation
-        try {
-          const services = await fetchProjectServices(project.data.id);
-          setProjectServices(services);
-          console.log('Fetched Services:', services);
+        const services = await fetchProjectServices(project.data.id);
+        setProjectServices(services);
+        console.log('Fetched Services:', services);
 
-          // Access the services array correctly
+        // Generate executive summary after services are fetched
+        if (!executiveSummaryGeneratedRef.current) {
           const serviceDescriptions = services.data.map(service => ({
             recipe_name: service.attributes.name,
-            ingredients: service.attributes['service-description'].split('. '),
+            ingredients: service.attributes['service-description']?.split('. ') || [],
           }));
 
-          // Define the questionnaire answers (replace with actual data)
-          const questionnaireAnswers = {
-            clientOverview: "Brief description of the client's business and industry.",
-            engagementObjectives: "Specific goals the client aims to achieve.",
-            keyFindings: "Critical insights gathered from discovery.",
-            proposedSolution: "Recommended services and methodologies.",
-            businessImpact: "Expected business impact and success metrics.",
-            nextSteps: "Implementation plan and key milestones."
-          };
+          const prompt = `Generate an executive summary for the client ${clientName} based on the following services:\n${JSON.stringify(serviceDescriptions)}`;
 
-          // Create a detailed prompt for the AI model
-          const prompt = `Generate an executive summary for a professional services engagement. The summary should be concise yet comprehensive, clearly outlining the business objectives, key challenges, proposed solutions, and expected outcomes. Use structured data from the discovery questionnaires to provide specific insights into the client's needs, operational constraints, and strategic goals.
-
-The summary should include the following sections:
-
-Client Overview – Briefly describe the client's business, industry, and relevant background.
-Engagement Objectives – Define the specific goals the client aims to achieve through this engagement, linking them to measurable business outcomes.
-Key Findings from Discovery – Highlight critical insights gathered from discovery, including pain points, inefficiencies, or opportunities for improvement. Use relevant quantitative and qualitative data.
-Proposed Solution & Approach – Outline the recommended services, methodologies, and frameworks that will be applied to address the client's challenges.
-Business Impact & Success Metrics – Explain the expected business impact, KPIs, and success measures that will determine the effectiveness of the engagement.
-Next Steps & Timeline – Summarize the implementation plan, key milestones, and next steps to ensure alignment with the client's priorities.
-
-Use a professional, results-oriented tone and ensure clarity in articulating the value proposition. Keep the focus on strategic outcomes rather than technical details, making it accessible to executive stakeholders.
-
-Client Name: ${clientName}
-Questionnaire Answers: ${JSON.stringify(questionnaireAnswers, null, 2)}
-Recommended Services: ${JSON.stringify(serviceDescriptions, null, 2)}`;
-
-          // Generate executive summary using AI
           const summary = await generateContentWithAI(prompt);
           console.log('Generated Summary:', summary);
           setExecutiveSummary(summary);
           setShowSummary(true);
-        } catch (error) {
-          console.error('Failed to fetch project services:', error);
-        }
 
-        // Reset form
-        setProjectName('');
-        setClientName('');
-        setSelectedQuestionnaire('');
-        setQuestions([]);
-        setAnswers({});
-        setMsaDate('');
-        setSelectedClient(null);
-        setProjectId(project.data.id);
+          executiveSummaryGeneratedRef.current = true; // Mark as generated
+        }
       }
     } catch (error) {
       console.error('Error in form submission:', error);
-      console.error('Full error details:', {
-        message: error.message,
-        stack: error.stack,
-        response: error.response?.data
-      });
     } finally {
       setIsLoading(false);
     }
@@ -329,34 +284,21 @@ Recommended Services: ${JSON.stringify(serviceDescriptions, null, 2)}`;
     loadQuestions();
   }, [selectedQuestionnaire]);
 
-  // Use useCallback to memoize loadProjectServices
+  // Modify loadProjectServices to prevent duplicate AI content generation
   const loadProjectServices = useCallback(async (projectId) => {
+    if (!projectId) return; // Prevent duplicate calls
+
     setIsLoading(true);
     try {
       const services = await fetchProjectServices(projectId);
       setProjectServices(services);
       console.log('Fetched Services:', services);
-
-      // Access the services array correctly
-      const serviceDescriptions = services.data.map(service => ({
-        recipe_name: service.attributes.name,
-        ingredients: service.attributes['service-description'].split('. '),
-      }));
-
-      // Create a prompt for the AI model
-      const prompt = `Generate an executive summary for the client ${clientName} based on the following services:\n${JSON.stringify(serviceDescriptions)}`;
-
-      // Generate executive summary using AI
-      const summary = await generateContentWithAI(prompt);
-      console.log('Generated Summary:', summary);
-      setExecutiveSummary(summary);
-      setShowSummary(true);
     } catch (error) {
       console.error('Failed to fetch project services:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [clientName]);
+  }, []);
 
   useEffect(() => {
     if (projectId) {
@@ -637,6 +579,10 @@ Recommended Services: ${JSON.stringify(serviceDescriptions, null, 2)}`;
           </div>
         )}
 
+        {showSummary && (
+          <ExecutiveSummary summary={executiveSummary} onClose={handleCloseSummary} />
+        )}
+        
         {projectServices.length > 0 && (
           <div>
             <h3>Project Services</h3>
@@ -648,10 +594,6 @@ Recommended Services: ${JSON.stringify(serviceDescriptions, null, 2)}`;
           </div>
         )}
       </form>
-
-      {showSummary && (
-        <ExecutiveSummary summary={executiveSummary} onClose={handleCloseSummary} />
-      )}
     </div>
   );
 };
