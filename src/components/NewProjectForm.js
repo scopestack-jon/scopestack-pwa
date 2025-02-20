@@ -318,7 +318,7 @@ const NewProjectForm = () => {
           </div>
         </div>
         <img 
-          src="/assets/SS-Logo-Horiztonal-allwhite.png"
+          src="https://github.com/scopestack-jon/scopestack-pwa/blob/main/public/assets/SS-Logo-Horiztonal-allwhite.png"
           alt="ScopeStack" 
           className="header-logo"
         />
