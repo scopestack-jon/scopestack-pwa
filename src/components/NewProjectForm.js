@@ -318,7 +318,7 @@ const NewProjectForm = () => {
           </div>
         </div>
         <img 
-          src="/assets/SS-Logo-Horiztonal-allwhite.png"
+          src={`${process.env.PUBLIC_URL}/assets/SS-Logo-Horiztonal-allwhite.png`}
           alt="ScopeStack Logo" 
           className="header-logo"
         />
