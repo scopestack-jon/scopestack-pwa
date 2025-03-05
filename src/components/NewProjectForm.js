@@ -601,6 +601,16 @@ const NewProjectForm = () => {
         <div className="account-info">
           <p className="account-detail">Account: {accountSlug}</p>
           <p className="account-detail">User: {currentUser}</p>
+          <div className="settings-gear-container">
+            <button 
+              type="button" 
+              className="settings-gear-button" 
+              onClick={() => setShowPromptEditor(true)}
+              title="Customize AI Prompt"
+            >
+              ⚙️
+            </button>
+          </div>
         </div>
 
         <div className="form-section">
@@ -687,6 +697,11 @@ const NewProjectForm = () => {
             <label>
               <span className="required">*</span>
               Customer Contact Name
+              {selectedClient && selectedClient.contacts && selectedClient.contacts.length > 0 && !showContactSelector && (
+                <span className="contact-count-label">
+                  ({selectedClient.contacts.length} {selectedClient.contacts.length === 1 ? 'Contact' : 'Contacts'} Available)
+                </span>
+              )}
             </label>
             {showContactSelector && (
               <div className="contact-selector">
@@ -736,11 +751,6 @@ const NewProjectForm = () => {
                 placeholder="Enter contact name"
                 required
               />
-              {selectedClient && selectedClient.contacts && selectedClient.contacts.length > 0 && !showContactSelector && (
-                <div className="contact-field-hint">
-                  {selectedClient.contacts.length} {selectedClient.contacts.length === 1 ? 'Contact' : 'Contacts'}
-                </div>
-              )}
             </div>
           </div>
 
@@ -895,17 +905,27 @@ const NewProjectForm = () => {
           </div>
         )}
 
-        {/* Prompt editor button - only visible after project is created */}
-        {projectId && (
-          <div className="settings-gear-container">
-            <button 
-              type="button" 
-              className="settings-gear-button" 
-              onClick={() => setShowPromptEditor(true)}
-              title="Customize AI Prompt"
-            >
-              ⚙️
-            </button>
+        {showSummary && (
+          <ExecutiveSummary 
+            summary={executiveSummary} 
+            onClose={handleCloseSummary} 
+            onRegenerate={regenerateExecutiveSummary}
+            onEditPrompt={() => setShowPromptEditor(true)}
+            isLoading={isLoading}
+          />
+        )}
+        
+        {projectServices && projectServices.data && Array.isArray(projectServices.data) && projectServices.data.length > 0 && (
+          <div className="form-section pricing-section">
+            <h2>Project Services</h2>
+            <ul className="services-list">
+              {projectServices.data.map(service => (
+                <li key={service.id} className="service-item">
+                  <span className="service-bullet">•</span>
+                  {service.attributes?.name || 'Unnamed Service'}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -963,30 +983,6 @@ const NewProjectForm = () => {
                 </button>
               </div>
             </div>
-          </div>
-        )}
-
-        {showSummary && (
-          <ExecutiveSummary 
-            summary={executiveSummary} 
-            onClose={handleCloseSummary} 
-            onRegenerate={regenerateExecutiveSummary}
-            onEditPrompt={() => setShowPromptEditor(true)}
-            isLoading={isLoading}
-          />
-        )}
-        
-        {projectServices && projectServices.data && Array.isArray(projectServices.data) && projectServices.data.length > 0 && (
-          <div className="form-section pricing-section">
-            <h2>Project Services</h2>
-            <ul className="services-list">
-              {projectServices.data.map(service => (
-                <li key={service.id} className="service-item">
-                  <span className="service-bullet">•</span>
-                  {service.attributes?.name || 'Unnamed Service'}
-                </li>
-              ))}
-            </ul>
           </div>
         )}
       </form>
@@ -1072,26 +1068,39 @@ const styles = `
   
   .contact-field-hint {
     position: absolute;
-    left: 10px;
+    right: 25px;
     top: 50%;
     transform: translateY(-50%);
     font-size: 12px;
     color: #1890ff;
     background-color: #f0f7ff;
-    padding: 2px 6px;
+    padding: 3px 8px;
     border-radius: 10px;
     border: 1px solid #91d5ff;
     cursor: pointer;
     white-space: nowrap;
     font-weight: 500;
     line-height: 1;
-    min-width: auto;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    z-index: 1;
+    z-index: 5;
   }
   
+  /* Add this for better visibility of the badge */
+  .contact-field-hint::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    bottom: -2px;
+    left: -2px;
+    background-color: white;
+    border-radius: 12px;
+    z-index: -1;
+  }
+  
+  /* Ensure the text input has enough padding */
   input.form-input.with-hint {
-    padding-left: 80px;
+    text-overflow: ellipsis;
+    padding-right: 110px !important;
   }
   
   .new-contact-btn {
@@ -1345,9 +1354,7 @@ const styles = `
   
   /* Settings Gear Styles */
   .settings-gear-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
+    margin-left: auto;
     z-index: 100;
   }
   
@@ -1369,6 +1376,19 @@ const styles = `
     opacity: 1;
     background-color: rgba(0, 0, 0, 0.05);
     transform: rotate(45deg);
+  }
+  
+  .contact-count-label {
+    margin-left: 8px;
+    font-size: 13px;
+    color: #1890ff;
+    font-weight: normal;
+    background-color: #f0f7ff;
+    padding: 2px 8px;
+    border-radius: 12px;
+    border: 1px solid #91d5ff;
+    display: inline-block;
+    line-height: 1.2;
   }
 `;
 
