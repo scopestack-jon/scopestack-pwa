@@ -41,6 +41,11 @@ const NewProjectForm = () => {
   const [filteredClients, setFilteredClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
 
+  // Add state for contact selection
+  const [availableContacts, setAvailableContacts] = useState([]);
+  const [showContactSelector, setShowContactSelector] = useState(false);
+  const [isNewContact, setIsNewContact] = useState(false);
+
   // Add new state for loading and status messages
   const [statusMessage, setStatusMessage] = useState('');
   const [documentUrl, setDocumentUrl] = useState(null);
@@ -96,19 +101,71 @@ const NewProjectForm = () => {
       setMsaDate(''); // Clear the MSA date if not available
     }
     
-    // Auto-fill contact information if available
-    if (client.contacts && client.contacts.length > 0) {
+    // Check if client has multiple contacts
+    if (client.contacts && client.contacts.length > 1) {
+      // Multiple contacts - show selector
+      console.log("Client has multiple contacts:", client.contacts);
+      setAvailableContacts(client.contacts);
+      setShowContactSelector(true);
+      setIsNewContact(false);
+      
+      // Clear contact fields until a contact is selected
+      setContactName('');
+      setContactEmail('');
+      setContactPhone('');
+      setContactTitle('');
+    } else if (client.contacts && client.contacts.length === 1) {
+      // Single contact - auto-fill
+      console.log("Client has one contact:", client.contacts[0]);
       const primaryContact = client.contacts[0];
       setContactName(primaryContact.name || '');
       setContactEmail(primaryContact.email || '');
       setContactPhone(primaryContact.phone || '');
       setContactTitle(primaryContact.title || '');
+      setShowContactSelector(false);
+      setAvailableContacts([]);
     } else {
-      // Clear contact fields if no contacts are available
+      // No contacts - clear fields
+      console.log("Client has no contacts");
       setContactName('');
       setContactEmail('');
       setContactPhone('');
       setContactTitle('');
+      setShowContactSelector(false);
+      setAvailableContacts([]);
+      setIsNewContact(true);
+    }
+  };
+  
+  // Handle selecting a contact from the list
+  const handleContactSelect = (contact) => {
+    console.log("Contact selected:", contact);
+    setContactName(contact.name || '');
+    setContactEmail(contact.email || '');
+    setContactPhone(contact.phone || '');
+    setContactTitle(contact.title || '');
+    // Hide the contact selector after selection
+    setShowContactSelector(false);
+    // We're not creating a new contact
+    setIsNewContact(false);
+  };
+  
+  // Toggle to create a new contact
+  const handleNewContact = () => {
+    setContactName('');
+    setContactEmail('');
+    setContactPhone('');
+    setContactTitle('');
+    setIsNewContact(true);
+    // Hide the selector after switching to new contact mode
+    setShowContactSelector(false);
+  };
+
+  // Show contact selector when clicking on the contact name field
+  const handleContactFieldFocus = () => {
+    // Only show the selector if we have a selected client with contacts
+    if (selectedClient && selectedClient.contacts && selectedClient.contacts.length > 0) {
+      setShowContactSelector(true);
     }
   };
 
@@ -444,14 +501,60 @@ const NewProjectForm = () => {
               <span className="required">*</span>
               Customer Contact Name
             </label>
-            <input
-              type="text"
-              className="form-input"
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
-              placeholder="Enter contact name"
-              required
-            />
+            {showContactSelector && (
+              <div className="contact-selector">
+                <h4>Contacts for {selectedClient && selectedClient.name}</h4>
+                {isNewContact ? (
+                  <div className="new-contact-message">Creating a new contact</div>
+                ) : (
+                  <ul className="contact-list">
+                    {availableContacts.map((contact) => (
+                      <li 
+                        key={contact.id} 
+                        onClick={() => handleContactSelect(contact)}
+                        className={`contact-item ${contactName === contact.name ? 'contact-selected' : ''}`}
+                      >
+                        <strong>{contact.name}</strong> {contact.title && `- ${contact.title}`} {contact.email && `- ${contact.email}`}
+                        {contactName === contact.name && <span className="selected-indicator"> (Selected)</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <button 
+                  type="button" 
+                  className={`new-contact-btn ${isNewContact ? 'active' : ''}`}
+                  onClick={handleNewContact}
+                >
+                  {isNewContact ? 'Currently creating new contact' : 'Create new contact'}
+                </button>
+                {isNewContact && availableContacts.length > 0 && (
+                  <button 
+                    type="button" 
+                    className="text-button"
+                    onClick={() => setIsNewContact(false)}
+                  >
+                    ← Back to existing contacts
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="input-with-indicator">
+              <input
+                type="text"
+                className="form-input"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                onClick={handleContactFieldFocus}
+                onFocus={handleContactFieldFocus}
+                placeholder="Enter contact name"
+                required
+              />
+              {selectedClient && selectedClient.contacts && selectedClient.contacts.length > 0 && !showContactSelector && (
+                <div className="contact-field-hint">
+                  {selectedClient.contacts.length} {selectedClient.contacts.length === 1 ? 'Contact' : 'Contacts'}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="input-group">
@@ -637,6 +740,129 @@ const styles = `
 
   .client-dropdown li:last-child {
     border-bottom: none;
+  }
+  
+  .contact-selector {
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+  }
+  
+  .contact-selector h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #333;
+  }
+  
+  .contact-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 15px 0;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  
+  .contact-item {
+    padding: 8px 12px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .contact-item:hover {
+    background-color: #f0f0f0;
+  }
+  
+  .contact-selected {
+    background-color: #e6f7ff;
+    border-left: 3px solid #1890ff;
+  }
+  
+  .selected-indicator {
+    color: #1890ff;
+    font-size: 12px;
+    font-style: italic;
+  }
+  
+  .new-contact-message {
+    padding: 10px;
+    margin-bottom: 15px;
+    background-color: #f0f7ff;
+    border-radius: 4px;
+    color: #1890ff;
+    font-weight: 500;
+    text-align: center;
+    border-left: 3px solid #1890ff;
+  }
+  
+  .input-with-indicator {
+    position: relative;
+  }
+  
+  .contact-field-hint {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: #1890ff;
+    background-color: #f0f7ff;
+    padding: 2px 6px;
+    border-radius: 10px;
+    border: 1px solid #91d5ff;
+    cursor: pointer;
+    white-space: nowrap;
+    font-weight: 500;
+    line-height: 1;
+    min-width: auto;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  
+  .new-contact-btn {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    background-color: #e6f7ff;
+    border: 1px solid #91d5ff;
+    border-radius: 4px;
+    color: #1890ff;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  
+  .new-contact-btn:hover {
+    background-color: #bae7ff;
+  }
+  
+  .new-contact-btn.active {
+    background-color: #1890ff;
+    color: white;
+    font-weight: 500;
+  }
+  
+  .back-link {
+    margin-bottom: 10px;
+  }
+  
+  .text-button {
+    background: none;
+    border: none;
+    color: #1890ff;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 8px;
+    font-size: 14px;
+    text-decoration: underline;
+    display: block;
+    width: 100%;
+    text-align: center;
+  }
+  
+  .text-button:hover {
+    color: #40a9ff;
   }
 `;
 
