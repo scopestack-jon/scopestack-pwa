@@ -299,9 +299,19 @@ const NewProjectForm = () => {
         }
 
         // Fetch associated professional services after project creation
-        const services = await fetchProjectServices(project.data.id);
-        setProjectServices(services);
-        console.log('Fetched Services:', services);
+        try {
+          const services = await fetchProjectServices(project.data.id);
+          if (services && services.data) {
+            setProjectServices(services);
+            console.log('Fetched Services:', services);
+          } else {
+            console.log('No services data returned or function not implemented');
+            setProjectServices([]);
+          }
+        } catch (error) {
+          console.error('Error fetching project services:', error);
+          setProjectServices([]);
+        }
 
         // Fetch project documents
         const documents = await getProjectDocuments(project.data.id);
@@ -309,19 +319,57 @@ const NewProjectForm = () => {
 
         // Generate executive summary after services are fetched
         if (!executiveSummaryGeneratedRef.current) {
-          const serviceDescriptions = services.data.map(service => ({
-            recipe_name: service.attributes.name,
-            ingredients: service.attributes['service-description']?.split('. ') || [],
-          }));
+          try {
+            // Use only the projectServices state 
+            const fetchedServices = projectServices;
+            
+            // Check if fetchedServices exists and has data before trying to map
+            const serviceDescriptions = fetchedServices && fetchedServices.data ? 
+              fetchedServices.data.map(service => ({
+                service_name: service.attributes.name,
+                quantity: service.attributes.quantity || 1,
+                hours: service.attributes['total-hours'] || 'Not specified',
+                description: service.attributes['service-description'] || 'No description available',
+                position: service.attributes.position || 0
+              })) : [];
 
-          const prompt = `Generate an executive summary for the client ${clientName} based on the following services:\n${JSON.stringify(serviceDescriptions)}`;
+            // Sort services by position to maintain logical ordering
+            serviceDescriptions.sort((a, b) => a.position - b.position);
 
-          const summary = await generateContentWithAI(prompt);
-          console.log('Generated Summary:', summary);
-          setExecutiveSummary(summary);
-          setShowSummary(true);
+            if (serviceDescriptions.length > 0) {
+              // Create a more detailed prompt with all available service information
+              const prompt = `
+Generate a professional executive summary for ${clientName} based on the following services:
 
-          executiveSummaryGeneratedRef.current = true; // Mark as generated
+${serviceDescriptions.map(svc => 
+  `SERVICE: ${svc.service_name}
+   QUANTITY: ${svc.quantity}
+   HOURS: ${svc.hours}
+   DESCRIPTION: ${svc.description}
+  `).join('\n\n')}
+
+The executive summary should:
+1. Briefly introduce the solution being provided to the client
+2. Highlight the key services and their business value
+3. Explain how these services will address the client's needs
+4. Conclude with the anticipated benefits of implementing these services
+5. Keep the tone professional but conversational
+6. Target length: 3-4 paragraphs
+`;
+              
+              const summary = await generateContentWithAI(prompt);
+              console.log('Generated Summary:', summary);
+              setExecutiveSummary(summary);
+              setShowSummary(true);
+            } else {
+              console.log('No service descriptions available for AI summary generation');
+              setExecutiveSummary('No services available to generate summary.');
+            }
+            
+            executiveSummaryGeneratedRef.current = true; // Mark as generated
+          } catch (error) {
+            console.error('Error generating executive summary:', error);
+          }
         }
       }
     } catch (error) {
@@ -398,10 +446,16 @@ const NewProjectForm = () => {
     setIsLoading(true);
     try {
       const services = await fetchProjectServices(projectId);
-      setProjectServices(services);
-      console.log('Fetched Services:', services);
+      if (services && services.data) {
+        setProjectServices(services);
+        console.log('Fetched Services:', services);
+      } else {
+        console.log('No services data returned or API not implemented');
+        setProjectServices([]);
+      }
     } catch (error) {
       console.error('Failed to fetch project services:', error);
+      setProjectServices([]);
     } finally {
       setIsLoading(false);
     }
@@ -718,12 +772,16 @@ const NewProjectForm = () => {
         {showSummary && (
           <ExecutiveSummary summary={executiveSummary} onClose={handleCloseSummary} />
         )}
-        {Array.isArray(projectServices) && projectServices.length > 0 && (
-          <div>
-            <h3>Project Services</h3>
-            <ul>
-              {projectServices.map(service => (
-                <li key={service.id}>{service.attributes.name}</li>
+        
+        {projectServices && projectServices.data && Array.isArray(projectServices.data) && projectServices.data.length > 0 && (
+          <div className="form-section pricing-section">
+            <h2>Project Services</h2>
+            <ul className="services-list">
+              {projectServices.data.map(service => (
+                <li key={service.id} className="service-item">
+                  <span className="service-bullet">•</span>
+                  {service.attributes?.name || 'Unnamed Service'}
+                </li>
               ))}
             </ul>
           </div>
@@ -811,7 +869,7 @@ const styles = `
   
   .contact-field-hint {
     position: absolute;
-    right: 10px;
+    left: 10px;
     top: 50%;
     transform: translateY(-50%);
     font-size: 12px;
@@ -826,6 +884,11 @@ const styles = `
     line-height: 1;
     min-width: auto;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    z-index: 1;
+  }
+  
+  input.form-input.with-hint {
+    padding-left: 80px;
   }
   
   .new-contact-btn {
@@ -870,6 +933,28 @@ const styles = `
   
   .text-button:hover {
     color: #40a9ff;
+  }
+  
+  /* Project Services Styles */
+  .services-list {
+    list-style: none;
+    padding: 0;
+    margin: 15px 0 0 0;
+  }
+  
+  .service-item {
+    padding: 10px 0;
+    font-size: 16px;
+    color: #333;
+    display: flex;
+    align-items: center;
+  }
+  
+  .service-bullet {
+    color: #333;
+    font-size: 18px;
+    margin-right: 12px;
+    line-height: 1;
   }
 `;
 

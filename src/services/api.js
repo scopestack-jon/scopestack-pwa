@@ -491,8 +491,26 @@ export const fetchProjectPricing = async (projectId) => {
   }
 };
 
+// Fetch Project Services
 export const fetchProjectServices = async (projectId) => {
-  // Implement the function logic
+  try {
+    const response = await apiScoped.get(`/v1/projects/${projectId}?include=project-services`);
+    return {
+      data: response.data.included.filter(item => item.type === 'project-services').map(service => ({
+        id: service.id,
+        attributes: {
+          name: service.attributes.name,
+          quantity: service.attributes.quantity,
+          'service-description': service.attributes['service-description'],
+          position: service.attributes.position,
+          'total-hours': service.attributes['total-hours']
+        }
+      }))
+    };
+  } catch (error) {
+    console.error("❌ Error fetching project services:", error);
+    throw error;
+  }
 };
 
 export const generateContentWithAI = async (prompt) => {
