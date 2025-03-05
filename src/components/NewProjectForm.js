@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  searchClients,
+  fetchClients,
   fetchQuestionnaires,
   fetchQuestionnaireQuestions,
   createClient,
@@ -60,16 +60,20 @@ const NewProjectForm = () => {
       return;
     }
 
+    setIsLoading(true);
     try {
-      const response = await searchClients(searchTerm);
-      const clients = response.data || [];
-      setFilteredClients(clients);
+      const response = await fetchClients(searchTerm.toLowerCase());
+      console.log('API Response:', response);
+      setFilteredClients(response || []);
     } catch (error) {
       console.error('Error searching clients:', error);
       setFilteredClients([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  // Directly handle input change without debounce
   const handleClientInputChange = (e) => {
     const searchTerm = e.target.value;
     setClientName(searchTerm);
@@ -359,6 +363,8 @@ const NewProjectForm = () => {
                 placeholder="Enter client name"
                 required
               />
+              
+              {isLoading && <div>Loading...</div>}
               
               {filteredClients.length > 0 && (
                 <ul className="client-dropdown">

@@ -353,16 +353,6 @@ export const getProjectDocuments = async (projectId) => {
 };
 
 // Example function definitions
-export const searchClients = async (searchTerm) => {
-  try {
-    const response = await apiScoped.get(`/v1/clients?filter[name]=${searchTerm}`);
-    return response.data.data;
-  } catch (error) {
-    console.error("❌ Error fetching clients:", error);
-    throw error;
-  }
-};
-
 export const createClient = async (clientName, accountId) => {
   try {
     const response = await apiScoped.post('/v1/clients', {
