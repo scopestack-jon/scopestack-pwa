@@ -374,7 +374,14 @@ const NewProjectForm = () => {
       if (selectedQuestionnaire) {
         try {
           const questionData = await fetchQuestionnaireQuestions(selectedQuestionnaire);
-          setQuestions(questionData.attributes.questions);
+          
+          // Filter out questions that have a deleted-at date
+          const activeQuestions = questionData.attributes.questions.filter(
+            question => question['deleted-at'] === null
+          );
+          
+          // Set only the active questions in state
+          setQuestions(activeQuestions);
           setAnswers({});
         } catch (error) {
           console.error('Error loading questions:', error);
