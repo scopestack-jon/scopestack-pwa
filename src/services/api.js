@@ -117,11 +117,38 @@ export const fetchQuestionnaireQuestions = async (questionnaireId) => {
 export const fetchClients = async (searchTerm) => {
   try {
     const response = await apiScoped.get(`/v1/clients?filter[active]=true&include=contacts&filter[name]=${searchTerm}`);
-    return response.data.data.map(client => ({
-      id: client.id,
-      name: client.attributes?.['name'],
-      msaDate: client.attributes?.['msa-date'] || null,
-    }));
+    
+    // Create a map of contact IDs to contact data for easier lookup
+    const contactsMap = {};
+    if (response.data.included) {
+      response.data.included.forEach(item => {
+        if (item.type === 'contacts') {
+          contactsMap[item.id] = item;
+        }
+      });
+    }
+    
+    return response.data.data.map(client => {
+      // Find associated contacts for this client
+      const contactRefs = client.relationships?.contacts?.data || [];
+      const contacts = contactRefs.map(ref => {
+        const contactData = contactsMap[ref.id];
+        return contactData ? {
+          id: contactData.id,
+          name: contactData.attributes.name,
+          email: contactData.attributes.email,
+          phone: contactData.attributes.phone,
+          title: contactData.attributes.title
+        } : null;
+      }).filter(contact => contact !== null);
+      
+      return {
+        id: client.id,
+        name: client.attributes?.name,
+        msaDate: client.attributes?.['msa-date'] || null,
+        contacts: contacts
+      };
+    });
   } catch (error) {
     console.error("❌ Error fetching clients:", error);
     throw error;

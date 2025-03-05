@@ -95,6 +95,21 @@ const NewProjectForm = () => {
     } else {
       setMsaDate(''); // Clear the MSA date if not available
     }
+    
+    // Auto-fill contact information if available
+    if (client.contacts && client.contacts.length > 0) {
+      const primaryContact = client.contacts[0];
+      setContactName(primaryContact.name || '');
+      setContactEmail(primaryContact.email || '');
+      setContactPhone(primaryContact.phone || '');
+      setContactTitle(primaryContact.title || '');
+    } else {
+      // Clear contact fields if no contacts are available
+      setContactName('');
+      setContactEmail('');
+      setContactPhone('');
+      setContactTitle('');
+    }
   };
 
   const handleAnswerChange = (questionSlug, value, questionId) => {
