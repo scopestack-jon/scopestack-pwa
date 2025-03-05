@@ -18,6 +18,30 @@ import {
 import './NewProjectForm.css';
 import ExecutiveSummary from './ExecutiveSummary';
 
+// Define the default prompt template for executive summary generation
+const DEFAULT_PROMPT_TEMPLATE = `
+Generate a professional executive summary for {{clientName}} based on the following context:
+
+CLIENT INFORMATION:
+Client Name: {{clientName}}
+Project Name: {{projectName}}
+
+SURVEY RESPONSES:
+{{surveyContext}}
+
+RECOMMENDED SERVICES:
+{{serviceDescriptions}}
+
+The executive summary should:
+1. Begin with an introduction that mentions the client by name and the project context
+2. Summarize the client's needs based on the survey responses
+3. Outline the recommended services and their specific benefits to address those needs
+4. Highlight key technical aspects of the solution
+5. Conclude with the anticipated business outcomes and ROI
+6. Keep the tone professional but conversational
+7. Target length: 3-4 paragraphs
+`;
+
 const NewProjectForm = () => {
   const [projectName, setProjectName] = useState('');
   const [clientName, setClientName] = useState('');
@@ -58,7 +82,53 @@ const NewProjectForm = () => {
 
   const [projectId, setProjectId] = useState(null);
 
+  // New prompt template state
+  const [promptTemplate, setPromptTemplate] = useState('');
+  const [showPromptEditor, setShowPromptEditor] = useState(false);
+  const [editedPrompt, setEditedPrompt] = useState('');
+
   const executiveSummaryGeneratedRef = useRef(false);
+
+  // Load the saved prompt template from localStorage or use default
+  useEffect(() => {
+    const savedPrompt = localStorage.getItem('executiveSummaryPromptTemplate');
+    setPromptTemplate(savedPrompt || DEFAULT_PROMPT_TEMPLATE);
+    setEditedPrompt(savedPrompt || DEFAULT_PROMPT_TEMPLATE);
+  }, []);
+
+  // Save the prompt template to localStorage
+  const savePromptTemplate = (shouldRegenerate = false) => {
+    localStorage.setItem('executiveSummaryPromptTemplate', editedPrompt);
+    setPromptTemplate(editedPrompt);
+    setShowPromptEditor(false);
+    
+    // Regenerate the summary if requested
+    if (shouldRegenerate) {
+      regenerateExecutiveSummary();
+    }
+  };
+
+  // Reset prompt to default template
+  const resetPromptTemplate = () => {
+    setEditedPrompt(DEFAULT_PROMPT_TEMPLATE);
+  };
+
+  // Apply the template by replacing placeholders with actual values
+  const applyPromptTemplate = (template, data) => {
+    let result = template;
+    
+    // Replace client and project name placeholders
+    result = result.replace(/{{clientName}}/g, data.clientName);
+    result = result.replace(/{{projectName}}/g, data.projectName);
+    
+    // Replace survey context placeholder
+    result = result.replace(/{{surveyContext}}/g, data.surveyContext);
+    
+    // Replace service descriptions placeholder
+    result = result.replace(/{{serviceDescriptions}}/g, data.serviceDescriptions);
+    
+    return result;
+  };
 
   const handleClientSearch = async (searchTerm) => {
     if (searchTerm.trim() === '') {
@@ -304,6 +374,58 @@ const NewProjectForm = () => {
           if (services && services.data) {
             setProjectServices(services);
             console.log('Fetched Services:', services);
+            
+            // Generate executive summary after services are successfully fetched
+            if (!executiveSummaryGeneratedRef.current) {
+              try {
+                // Format survey questions and responses for the prompt
+                const surveyContext = Object.entries(answers).map(([questionSlug, answer]) => {
+                  const question = questions.find(q => q.slug === questionSlug);
+                  return `QUESTION: ${question.question}\nANSWER: ${answer}`;
+                }).join('\n\n');
+                
+                // Map services to a format useful for the AI prompt
+                const serviceDescriptions = services.data.map(service => ({
+                  service_name: service.attributes.name,
+                  quantity: service.attributes.quantity || 1,
+                  hours: service.attributes['total-hours'] || 'Not specified',
+                  description: service.attributes['service-description'] || 'No description available',
+                  position: service.attributes.position || 0
+                }));
+                
+                // Sort services by position to maintain logical ordering
+                serviceDescriptions.sort((a, b) => a.position - b.position);
+                
+                if (serviceDescriptions.length > 0) {
+                  // Format service descriptions for the prompt
+                  const formattedServices = serviceDescriptions.map(svc => 
+                    `SERVICE: ${svc.service_name}
+   QUANTITY: ${svc.quantity}
+   HOURS: ${svc.hours}
+   DESCRIPTION: ${svc.description}
+  `).join('\n\n');
+                  
+                  // Create the prompt from the template
+                  const prompt = applyPromptTemplate(promptTemplate, {
+                    clientName,
+                    projectName,
+                    surveyContext,
+                    serviceDescriptions: formattedServices
+                  });
+                  
+                  const summary = await generateContentWithAI(prompt);
+                  console.log('Generated Summary:', summary);
+                  setExecutiveSummary(summary);
+                  setShowSummary(true);
+                  executiveSummaryGeneratedRef.current = true; // Mark as generated
+                } else {
+                  console.log('No service descriptions available for AI summary generation');
+                  setExecutiveSummary('No services available to generate summary.');
+                }
+              } catch (error) {
+                console.error('Error generating executive summary:', error);
+              }
+            }
           } else {
             console.log('No services data returned or function not implemented');
             setProjectServices([]);
@@ -316,61 +438,6 @@ const NewProjectForm = () => {
         // Fetch project documents
         const documents = await getProjectDocuments(project.data.id);
         console.log('Fetched Documents:', documents);
-
-        // Generate executive summary after services are fetched
-        if (!executiveSummaryGeneratedRef.current) {
-          try {
-            // Use only the projectServices state 
-            const fetchedServices = projectServices;
-            
-            // Check if fetchedServices exists and has data before trying to map
-            const serviceDescriptions = fetchedServices && fetchedServices.data ? 
-              fetchedServices.data.map(service => ({
-                service_name: service.attributes.name,
-                quantity: service.attributes.quantity || 1,
-                hours: service.attributes['total-hours'] || 'Not specified',
-                description: service.attributes['service-description'] || 'No description available',
-                position: service.attributes.position || 0
-              })) : [];
-
-            // Sort services by position to maintain logical ordering
-            serviceDescriptions.sort((a, b) => a.position - b.position);
-
-            if (serviceDescriptions.length > 0) {
-              // Create a more detailed prompt with all available service information
-              const prompt = `
-Generate a professional executive summary for ${clientName} based on the following services:
-
-${serviceDescriptions.map(svc => 
-  `SERVICE: ${svc.service_name}
-   QUANTITY: ${svc.quantity}
-   HOURS: ${svc.hours}
-   DESCRIPTION: ${svc.description}
-  `).join('\n\n')}
-
-The executive summary should:
-1. Briefly introduce the solution being provided to the client
-2. Highlight the key services and their business value
-3. Explain how these services will address the client's needs
-4. Conclude with the anticipated benefits of implementing these services
-5. Keep the tone professional but conversational
-6. Target length: 3-4 paragraphs
-`;
-              
-              const summary = await generateContentWithAI(prompt);
-              console.log('Generated Summary:', summary);
-              setExecutiveSummary(summary);
-              setShowSummary(true);
-            } else {
-              console.log('No service descriptions available for AI summary generation');
-              setExecutiveSummary('No services available to generate summary.');
-            }
-            
-            executiveSummaryGeneratedRef.current = true; // Mark as generated
-          } catch (error) {
-            console.error('Error generating executive summary:', error);
-          }
-        }
       }
     } catch (error) {
       console.error('Error in form submission:', error);
@@ -381,6 +448,65 @@ The executive summary should:
 
   const handleCloseSummary = () => {
     setShowSummary(false);
+  };
+
+  // Add a function to regenerate the executive summary
+  const regenerateExecutiveSummary = async () => {
+    if (!projectId || !projectServices || !projectServices.data) {
+      console.error('Cannot regenerate summary: missing project data');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Format survey questions and responses for the prompt
+      const surveyContext = Object.entries(answers).map(([questionSlug, answer]) => {
+        const question = questions.find(q => q.slug === questionSlug);
+        return `QUESTION: ${question.question}\nANSWER: ${answer}`;
+      }).join('\n\n');
+      
+      // Map services to a format useful for the AI prompt
+      const serviceDescriptions = projectServices.data.map(service => ({
+        service_name: service.attributes.name,
+        quantity: service.attributes.quantity || 1,
+        hours: service.attributes['total-hours'] || 'Not specified',
+        description: service.attributes['service-description'] || 'No description available',
+        position: service.attributes.position || 0
+      }));
+      
+      // Sort services by position to maintain logical ordering
+      serviceDescriptions.sort((a, b) => a.position - b.position);
+      
+      if (serviceDescriptions.length > 0) {
+        // Format service descriptions for the prompt
+        const formattedServices = serviceDescriptions.map(svc => 
+          `SERVICE: ${svc.service_name}
+ QUANTITY: ${svc.quantity}
+ HOURS: ${svc.hours}
+ DESCRIPTION: ${svc.description}
+`).join('\n\n');
+        
+        // Create the prompt from the template
+        const prompt = applyPromptTemplate(promptTemplate, {
+          clientName,
+          projectName,
+          surveyContext,
+          serviceDescriptions: formattedServices
+        });
+        
+        const summary = await generateContentWithAI(prompt);
+        console.log('Regenerated Summary:', summary);
+        setExecutiveSummary(summary);
+        setShowSummary(true);
+      } else {
+        console.log('No service descriptions available for AI summary generation');
+        setExecutiveSummary('No services available to generate summary.');
+      }
+    } catch (error) {
+      console.error('Error regenerating executive summary:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -769,8 +895,85 @@ The executive summary should:
           </div>
         )}
 
+        {/* Prompt editor button - only visible after project is created */}
+        {projectId && (
+          <div className="settings-gear-container">
+            <button 
+              type="button" 
+              className="settings-gear-button" 
+              onClick={() => setShowPromptEditor(true)}
+              title="Customize AI Prompt"
+            >
+              ⚙️
+            </button>
+          </div>
+        )}
+
+        {/* Prompt Editor Modal */}
+        {showPromptEditor && (
+          <div className="modal-overlay">
+            <div className="prompt-editor-modal">
+              <h2>Edit Executive Summary Prompt</h2>
+              <p className="prompt-instructions">
+                Customize the AI prompt template. Use these placeholders:
+                <ul>
+                  <li><code>{"{{clientName}}"}</code> - Client's name</li>
+                  <li><code>{"{{projectName}}"}</code> - Project name</li>
+                  <li><code>{"{{surveyContext}}"}</code> - Survey questions and responses</li>
+                  <li><code>{"{{serviceDescriptions}}"}</code> - Description of services</li>
+                </ul>
+              </p>
+              
+              <textarea 
+                className="prompt-textarea" 
+                value={editedPrompt}
+                onChange={(e) => setEditedPrompt(e.target.value)}
+                rows={15}
+              />
+              
+              <div className="prompt-actions">
+                <button 
+                  type="button" 
+                  className="cancel-button"
+                  onClick={() => setShowPromptEditor(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="reset-button"
+                  onClick={resetPromptTemplate}
+                >
+                  Reset to Default
+                </button>
+                <button 
+                  type="button" 
+                  className="save-button"
+                  onClick={() => savePromptTemplate(false)}
+                >
+                  Save Template
+                </button>
+                <button 
+                  type="button" 
+                  className="save-regenerate-button"
+                  onClick={() => savePromptTemplate(true)}
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Processing...' : 'Save & Regenerate'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showSummary && (
-          <ExecutiveSummary summary={executiveSummary} onClose={handleCloseSummary} />
+          <ExecutiveSummary 
+            summary={executiveSummary} 
+            onClose={handleCloseSummary} 
+            onRegenerate={regenerateExecutiveSummary}
+            onEditPrompt={() => setShowPromptEditor(true)}
+            isLoading={isLoading}
+          />
         )}
         
         {projectServices && projectServices.data && Array.isArray(projectServices.data) && projectServices.data.length > 0 && (
@@ -955,6 +1158,217 @@ const styles = `
     font-size: 18px;
     margin-right: 12px;
     line-height: 1;
+  }
+  
+  /* Prompt Editor Styles */
+  .prompt-editor-container {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f8f8f8;
+    border-radius: 4px;
+    border-left: 3px solid #1890ff;
+  }
+  
+  .prompt-actions-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  
+  .prompt-editor-button {
+    background-color: #1890ff;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+  }
+  
+  .prompt-editor-button:hover {
+    background-color: #096dd9;
+  }
+  
+  .regenerate-button {
+    background-color: #52c41a;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+  }
+  
+  .regenerate-button:hover {
+    background-color: #389e0d;
+  }
+  
+  .regenerate-button:disabled {
+    background-color: #d9d9d9;
+    cursor: not-allowed;
+  }
+  
+  .prompt-helper-text {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #666;
+  }
+  
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .prompt-editor-modal {
+    background-color: white;
+    padding: 24px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .prompt-editor-modal h2 {
+    margin-top: 0;
+    color: #333;
+    font-size: 20px;
+  }
+  
+  .prompt-instructions {
+    margin-bottom: 16px;
+    color: #666;
+    font-size: 14px;
+  }
+  
+  .prompt-instructions ul {
+    margin-top: 8px;
+    padding-left: 20px;
+  }
+  
+  .prompt-instructions code {
+    background-color: #f0f0f0;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 13px;
+  }
+  
+  .prompt-textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  
+  .prompt-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+    gap: 12px;
+  }
+  
+  .cancel-button, .reset-button, .save-button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+  }
+  
+  .cancel-button {
+    background-color: #f0f0f0;
+    border: 1px solid #d9d9d9;
+    color: #333;
+  }
+  
+  .cancel-button:hover {
+    background-color: #e0e0e0;
+  }
+  
+  .reset-button {
+    background-color: #fff2e8;
+    border: 1px solid #ffbb96;
+    color: #fa541c;
+  }
+  
+  .reset-button:hover {
+    background-color: #ffd8bf;
+  }
+  
+  .save-button {
+    background-color: #52c41a;
+    border: 1px solid #52c41a;
+    color: white;
+  }
+  
+  .save-button:hover {
+    background-color: #389e0d;
+  }
+  
+  .save-regenerate-button {
+    background-color: #1890ff;
+    border: 1px solid #1890ff;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+  }
+  
+  .save-regenerate-button:hover {
+    background-color: #096dd9;
+  }
+  
+  .save-regenerate-button:disabled {
+    background-color: #d9d9d9;
+    border-color: #d9d9d9;
+    color: rgba(0, 0, 0, 0.25);
+    cursor: not-allowed;
+  }
+  
+  /* Settings Gear Styles */
+  .settings-gear-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+  }
+  
+  .settings-gear-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: all 0.3s;
+    padding: 10px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .settings-gear-button:hover {
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.05);
+    transform: rotate(45deg);
   }
 `;
 
