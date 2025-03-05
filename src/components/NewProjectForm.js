@@ -208,8 +208,16 @@ const NewProjectForm = () => {
         }
 
         // Fetch and display pricing
-        const projectPricing = await fetchProjectPricing(project.data.id);
-        setPricing(projectPricing);
+        try {
+          const projectPricing = await fetchProjectPricing(project.data.id);
+          if (projectPricing) {
+            setPricing(projectPricing);
+          } else {
+            console.error('Pricing data is undefined or empty.');
+          }
+        } catch (error) {
+          console.error('Error fetching project pricing:', error);
+        }
 
         // Fetch associated professional services after project creation
         const services = await fetchProjectServices(project.data.id);
@@ -569,7 +577,7 @@ const NewProjectForm = () => {
                   style: 'percent',
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2
-                }).format(pricing.margin / 100)}
+                }).format(pricing.margin)}
               </span>
             </div>
           </div>

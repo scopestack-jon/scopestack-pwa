@@ -442,7 +442,22 @@ export const createClient = async (clientName, accountId) => {
 
 
 export const fetchProjectPricing = async (projectId) => {
-  // Implement the function logic
+  try {
+    const response = await apiScoped.get(`/v1/projects/${projectId}`);
+    const projectData = response.data.data.attributes;
+
+    // Extract the required pricing attributes
+    const pricing = {
+      revenue: projectData['contract-revenue'],
+      cost: projectData['contract-cost'],
+      margin: projectData['contract-margin'],
+    };
+
+    return pricing;
+  } catch (error) {
+    console.error("❌ Error fetching project pricing:", error);
+    throw error;
+  }
 };
 
 export const fetchProjectServices = async (projectId) => {
