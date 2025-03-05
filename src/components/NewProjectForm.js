@@ -442,7 +442,7 @@ const NewProjectForm = () => {
           <div className="input-group">
             <label>
               <span className="required">*</span>
-              Contact Name
+              Customer Contact Name
             </label>
             <input
               type="text"
@@ -457,7 +457,7 @@ const NewProjectForm = () => {
           <div className="input-group">
             <label>
               <span className="required">*</span>
-              Contact Email
+              Customer Contact Email
             </label>
             <input
               type="email"
@@ -472,7 +472,7 @@ const NewProjectForm = () => {
           <div className="input-group">
             <label>
               <span className="required">*</span>
-              Contact Phone
+              Customer Contact Phone
             </label>
             <input
               type="tel"
@@ -487,7 +487,7 @@ const NewProjectForm = () => {
           <div className="input-group">
             <label>
               <span className="required">*</span>
-              Contact Title
+              Customer Contact Title
             </label>
             <input
               type="text"
