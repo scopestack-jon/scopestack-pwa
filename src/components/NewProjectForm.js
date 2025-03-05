@@ -85,13 +85,13 @@ const NewProjectForm = () => {
   };
 
   const handleClientSelect = (client) => {
-    setClientName(client.attributes.name);
+    setClientName(client.name);
     setSelectedClient(client);
     setFilteredClients([]);
 
     // Set the MSA date if it exists
-    if (client.attributes['msa-date']) {
-      setMsaDate(client.attributes['msa-date']);
+    if (client.msaDate) {
+      setMsaDate(client.msaDate);
     } else {
       setMsaDate(''); // Clear the MSA date if not available
     }
@@ -384,7 +384,7 @@ const NewProjectForm = () => {
                       onClick={() => handleClientSelect(client)}
                       className="client-dropdown-item"
                     >
-                      {client.attributes.name}
+                      {client.name || 'No Name'}
                     </li>
                   ))}
                 </ul>
@@ -396,7 +396,7 @@ const NewProjectForm = () => {
               )}
               {selectedClient && (
                 <div className="helper-text success">
-                  Selected existing client: {selectedClient.attributes.name}
+                  Selected existing client: {selectedClient.name}
                 </div>
               )}
             </div>
