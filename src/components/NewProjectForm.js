@@ -14,6 +14,7 @@ import {
   generateContentWithAI,
   fetchProjectServices,
   getProjectDocuments,
+  fetchSalesExecutives,
 } from '../services/api';
 import './NewProjectForm.css';
 import ExecutiveSummary from './ExecutiveSummary';
@@ -88,6 +89,12 @@ const NewProjectForm = () => {
   const [editedPrompt, setEditedPrompt] = useState('');
 
   const executiveSummaryGeneratedRef = useRef(false);
+
+  // Add state for sales executive
+  const [salesExecutiveName, setSalesExecutiveName] = useState('');
+  const [filteredExecutives, setFilteredExecutives] = useState([]);
+  const [selectedExecutive, setSelectedExecutive] = useState(null);
+  const [isExecutiveLoading, setIsExecutiveLoading] = useState(false);
 
   // Load the saved prompt template from localStorage or use default
   useEffect(() => {
@@ -246,6 +253,43 @@ const NewProjectForm = () => {
     }));
   };
 
+  // Add handler for sales executive search
+  const handleExecutiveSearch = async (searchTerm) => {
+    if (searchTerm.trim() === '') {
+      setFilteredExecutives([]);
+      return;
+    }
+
+    setIsExecutiveLoading(true);
+    try {
+      const response = await fetchSalesExecutives(searchTerm.toLowerCase());
+      setFilteredExecutives(response || []);
+    } catch (error) {
+      console.error('Error searching sales executives:', error);
+      setFilteredExecutives([]);
+    } finally {
+      setIsExecutiveLoading(false);
+    }
+  };
+
+  // Add handler for sales executive input change
+  const handleExecutiveInputChange = (e) => {
+    const searchTerm = e.target.value;
+    setSalesExecutiveName(searchTerm);
+    if (searchTerm.length >= 2) {
+      handleExecutiveSearch(searchTerm);
+    } else {
+      setFilteredExecutives([]);
+    }
+  };
+
+  // Add handler for sales executive selection
+  const handleExecutiveSelect = (executive) => {
+    setSalesExecutiveName(executive.name);
+    setSelectedExecutive(executive);
+    setFilteredExecutives([]);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
@@ -263,6 +307,9 @@ const NewProjectForm = () => {
       }
       if (!accountId) {
         throw new Error('Account ID is required.');
+      }
+      if (!selectedExecutive) {
+        throw new Error('Sales Executive is required.');
       }
 
       // Ensure accountSlug is available
@@ -311,6 +358,12 @@ const NewProjectForm = () => {
               data: {
                 type: 'rate-tables',
                 id: rateTableId.toString()
+              }
+            },
+            'sales-executive': {
+              data: {
+                type: 'sales-executives',
+                id: selectedExecutive.id.toString()
               }
             }
           }
@@ -628,6 +681,48 @@ const NewProjectForm = () => {
               placeholder="Enter project name"
               required
             />
+          </div>
+
+          {/* Add Sales Executive dropdown */}
+          <div className="input-group">
+            <label>
+              <span className="required">*</span>
+              Sales Executive
+            </label>
+            <div className="client-search-container">
+              <input
+                type="text"
+                className="form-input"
+                value={salesExecutiveName}
+                onChange={handleExecutiveInputChange}
+                placeholder="Enter sales executive name"
+                required
+              />
+              {isExecutiveLoading && <div>Loading...</div>}
+              {filteredExecutives.length > 0 && (
+                <ul className="client-dropdown">
+                  {filteredExecutives.map((executive) => (
+                    <li
+                      key={executive.id}
+                      onClick={() => handleExecutiveSelect(executive)}
+                      className="client-dropdown-item"
+                    >
+                      {executive.name || 'No Name'}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {salesExecutiveName && filteredExecutives.length === 0 && !selectedExecutive && !isExecutiveLoading && (
+                <div className="helper-text">
+                  No matching sales executives found.
+                </div>
+              )}
+              {selectedExecutive && (
+                <div className="helper-text success">
+                  Selected sales executive: {selectedExecutive.name}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="input-group">
@@ -995,7 +1090,29 @@ export default NewProjectForm;
 const styles = `
   .client-search-container {
     position: relative;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
+  }
+
+  .client-dropdown {
+    position: absolute;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+    margin-top: 2px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .client-dropdown-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-bottom: 1px solid #f0f0f0;
   }
 
   .client-dropdown li:hover {
@@ -1006,9 +1123,19 @@ const styles = `
     border-bottom: none;
   }
   
+  .helper-text {
+    margin-top: 2px;
+    font-size: 12px;
+    color: #ff4d4f;
+  }
+  
+  .helper-text.success {
+    color: #52c41a;
+  }
+  
   .contact-selector {
-    margin-bottom: 15px;
-    padding: 10px;
+    margin-bottom: 10px;
+    padding: 8px;
     border: 1px solid #e0e0e0;
     border-radius: 4px;
     background-color: #f9f9f9;
@@ -1016,7 +1143,7 @@ const styles = `
   
   .contact-selector h4 {
     margin-top: 0;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     font-size: 14px;
     color: #333;
   }
@@ -1024,13 +1151,13 @@ const styles = `
   .contact-list {
     list-style: none;
     padding: 0;
-    margin: 0 0 15px 0;
-    max-height: 200px;
+    margin: 0 0 10px 0;
+    max-height: 150px;
     overflow-y: auto;
   }
   
   .contact-item {
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-bottom: 1px solid #eee;
     cursor: pointer;
     transition: background-color 0.2s;
@@ -1052,8 +1179,8 @@ const styles = `
   }
   
   .new-contact-message {
-    padding: 10px;
-    margin-bottom: 15px;
+    padding: 8px;
+    margin-bottom: 10px;
     background-color: #f0f7ff;
     border-radius: 4px;
     color: #1890ff;
@@ -1074,7 +1201,7 @@ const styles = `
     font-size: 12px;
     color: #1890ff;
     background-color: #f0f7ff;
-    padding: 3px 8px;
+    padding: 2px 6px;
     border-radius: 10px;
     border: 1px solid #91d5ff;
     cursor: pointer;
@@ -1106,7 +1233,7 @@ const styles = `
   .new-contact-btn {
     display: block;
     width: 100%;
-    padding: 8px;
+    padding: 6px;
     background-color: #e6f7ff;
     border: 1px solid #91d5ff;
     border-radius: 4px;
@@ -1126,7 +1253,7 @@ const styles = `
   }
   
   .back-link {
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
   
   .text-button {
@@ -1135,7 +1262,7 @@ const styles = `
     color: #1890ff;
     cursor: pointer;
     padding: 0;
-    margin-top: 8px;
+    margin-top: 6px;
     font-size: 14px;
     text-decoration: underline;
     display: block;
@@ -1151,11 +1278,11 @@ const styles = `
   .services-list {
     list-style: none;
     padding: 0;
-    margin: 15px 0 0 0;
+    margin: 10px 0 0 0;
   }
   
   .service-item {
-    padding: 10px 0;
+    padding: 6px 0;
     font-size: 16px;
     color: #333;
     display: flex;
@@ -1169,10 +1296,40 @@ const styles = `
     line-height: 1;
   }
   
+  /* Form layout spacing adjustments */
+  .form-section {
+    margin-bottom: 15px !important;
+    padding: 15px !important;
+  }
+  
+  .section-header {
+    margin-top: 0 !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .input-group {
+    margin-bottom: 10px !important;
+  }
+  
+  .input-group label {
+    margin-bottom: 3px !important;
+    display: block;
+  }
+  
+  .form-input {
+    padding: 8px 12px !important;
+    min-height: 36px !important;
+  }
+  
+  /* Reduce the height of select elements to match inputs */
+  select.form-input {
+    height: 36px !important;
+  }
+  
   /* Prompt Editor Styles */
   .prompt-editor-container {
-    margin: 20px 0;
-    padding: 15px;
+    margin: 15px 0;
+    padding: 12px;
     background-color: #f8f8f8;
     border-radius: 4px;
     border-left: 3px solid #1890ff;
@@ -1180,14 +1337,14 @@ const styles = `
   
   .prompt-actions-row {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     align-items: center;
   }
   
   .prompt-editor-button {
     background-color: #1890ff;
     color: white;
-    padding: 8px 16px;
+    padding: 6px 12px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -1202,7 +1359,7 @@ const styles = `
   .regenerate-button {
     background-color: #52c41a;
     color: white;
-    padding: 8px 16px;
+    padding: 6px 12px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -1220,7 +1377,7 @@ const styles = `
   }
   
   .prompt-helper-text {
-    margin-top: 8px;
+    margin-top: 6px;
     font-size: 14px;
     color: #666;
   }
@@ -1240,7 +1397,7 @@ const styles = `
   
   .prompt-editor-modal {
     background-color: white;
-    padding: 24px;
+    padding: 20px;
     border-radius: 8px;
     width: 90%;
     max-width: 800px;
@@ -1251,18 +1408,19 @@ const styles = `
   
   .prompt-editor-modal h2 {
     margin-top: 0;
+    margin-bottom: 10px;
     color: #333;
     font-size: 20px;
   }
   
   .prompt-instructions {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     color: #666;
     font-size: 14px;
   }
   
   .prompt-instructions ul {
-    margin-top: 8px;
+    margin-top: 6px;
     padding-left: 20px;
   }
   
@@ -1276,7 +1434,7 @@ const styles = `
   
   .prompt-textarea {
     width: 100%;
-    padding: 12px;
+    padding: 10px;
     border: 1px solid #d9d9d9;
     border-radius: 4px;
     font-family: monospace;
@@ -1288,12 +1446,12 @@ const styles = `
   .prompt-actions {
     display: flex;
     justify-content: flex-end;
-    margin-top: 20px;
-    gap: 12px;
+    margin-top: 15px;
+    gap: 10px;
   }
   
   .cancel-button, .reset-button, .save-button {
-    padding: 8px 16px;
+    padding: 6px 12px;
     border-radius: 4px;
     cursor: pointer;
     font-weight: 500;
@@ -1334,7 +1492,7 @@ const styles = `
     background-color: #1890ff;
     border: 1px solid #1890ff;
     color: white;
-    padding: 8px 16px;
+    padding: 6px 12px;
     border-radius: 4px;
     cursor: pointer;
     font-weight: 500;
@@ -1365,7 +1523,7 @@ const styles = `
     cursor: pointer;
     opacity: 0.6;
     transition: all 0.3s;
-    padding: 10px;
+    padding: 8px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1379,16 +1537,38 @@ const styles = `
   }
   
   .contact-count-label {
-    margin-left: 8px;
+    margin-left: 6px;
     font-size: 13px;
     color: #1890ff;
     font-weight: normal;
     background-color: #f0f7ff;
-    padding: 2px 8px;
+    padding: 1px 6px;
     border-radius: 12px;
     border: 1px solid #91d5ff;
     display: inline-block;
     line-height: 1.2;
+  }
+
+  /* Additional spacing reduction for the overall form */
+  .form-container {
+    padding: 15px !important;
+  }
+  
+  .form-content {
+    padding: 15px !important;
+  }
+  
+  .form-heading {
+    margin-bottom: 5px !important;
+  }
+  
+  .form-subheading {
+    margin-bottom: 10px !important;
+  }
+  
+  .account-info {
+    margin-bottom: 10px !important;
+    padding: 8px !important;
   }
 `;
 

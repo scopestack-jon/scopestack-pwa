@@ -155,6 +155,24 @@ export const fetchClients = async (searchTerm) => {
   }
 };
 
+// Fetch Sales Executives (for typeahead search)
+export const fetchSalesExecutives = async (searchTerm) => {
+  try {
+    const response = await apiScoped.get(`/v1/sales-executives?filter[active]=true${searchTerm ? `&filter[name]=${searchTerm}` : ''}`);
+    
+    return response.data.data.map(executive => ({
+      id: executive.id,
+      name: executive.attributes?.name,
+      email: executive.attributes?.email || '',
+      phone: executive.attributes?.phone || '',
+      title: executive.attributes?.title || '',
+    }));
+  } catch (error) {
+    console.error("❌ Error fetching sales executives:", error);
+    throw error;
+  }
+};
+
 // ✅ Fetch Default Rate Table
 export const fetchDefaultRateTable = async () => {
   try {
