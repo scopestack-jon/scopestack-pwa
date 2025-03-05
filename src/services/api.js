@@ -314,13 +314,34 @@ export const executeSurveyWorkflow = async (projectId, questionnaireId, surveyDa
 };
 
 // 1️⃣ Create Project Document
-export const createProjectDocument = async (projectId) => {
+export const fetchDocumentTemplates = async (accountSlug) => {
   try {
+    const response = await apiScoped.get(`/${accountSlug}/v1/document-templates?filter[active]=true`);
+    return response.data.data;
+  } catch (error) {
+    console.error('❌ Error fetching document templates:', error);
+    throw error;
+  }
+};
+
+export const createProjectDocument = async (projectId, accountSlug) => {
+  try {
+    // Fetch document templates
+    const templates = await fetchDocumentTemplates(accountSlug);
+    if (!templates || templates.length === 0) {
+      throw new Error('No document templates available.');
+    }
+
+    // Use the first template ID
+    const templateId = templates[0].id;
+    const templateName = templates[0].attributes.name;
+    console.log(`Using template: ${templateName} (ID: ${templateId})`);
+
     const response = await apiScoped.post("/v1/project-documents", {
       data: {
         type: "project-documents",
         attributes: {
-          "template-id": 1822, // SOW template ID
+          "template-id": templateId, // Use the first template ID
           "document-type": "sow",
         },
         relationships: {
@@ -333,7 +354,6 @@ export const createProjectDocument = async (projectId) => {
         },
       },
     });
-
     return response.data.data;
   } catch (error) {
     console.error("❌ Error creating project document:", error.response?.data || error);
