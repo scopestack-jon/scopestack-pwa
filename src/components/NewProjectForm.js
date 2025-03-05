@@ -26,26 +26,10 @@ const NewProjectForm = () => {
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [rateTableId, setRateTableId] = useState(null);
-  const selectedPaymentTerm = {
-    id: "3017",
-    type: "payment-terms",
-    attributes: {
-      active: true,
-      name: "FF, 2 Payments (25/75), Services Only",
-      "pricing-model": "fixed_fee",
-      slug: "ff_2_payments_2575_services_only",
-      position: 7,
-      rounding: "1234.57",
-      default: true,
-      "include-expense-in-cost": true,
-      "include-expense-in-revenue": true,
-      "travel-limit": false,
-      "include-materials": false
-    }
-  };
+  const [selectedPaymentTerm, setSelectedPaymentTerm] = useState(null);
 
   const [accountId, setAccountId] = useState(null);
-  const [accountName, setAccountName] = useState('');
+  const [accountSlug, setAccountSlug] = useState('');
   const [currentUser, setCurrentUser] = useState('');
 
   const [contactName, setContactName] = useState('');
@@ -162,7 +146,7 @@ const NewProjectForm = () => {
             'payment-term': {
               data: {
                 type: 'payment-terms',
-                id: "3017"
+                id: selectedPaymentTerm.id
               }
             },
             'rate-table': {
@@ -249,9 +233,10 @@ const NewProjectForm = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const { accountId, accountName, userName } = await getCurrentUserAndAccount();
+        const { accountId, accountSlug, userName } = await getCurrentUserAndAccount();
         setAccountId(accountId);
-        setAccountName(accountName);
+        setAccountSlug(accountSlug);
+        console.log('Account Slug:', accountSlug);
         setCurrentUser(userName);
 
         const questionnaireData = await fetchQuestionnaires();
@@ -260,8 +245,18 @@ const NewProjectForm = () => {
         const defaultRateTableId = await fetchDefaultRateTable();
         setRateTableId(defaultRateTableId);
 
-        const defaultPaymentTerm = await fetchDefaultPaymentTerm();
-        console.log('Default payment term:', defaultPaymentTerm);
+        const defaultTermId = await fetchDefaultPaymentTerm(accountId);
+        console.log('Fetched Default Payment Term ID:', defaultTermId);
+        if (defaultTermId) {
+          setSelectedPaymentTerm({
+            id: defaultTermId,
+            type: "payment-terms",
+            attributes: {
+              active: true,
+              // Add other necessary attributes here if needed
+            },
+          });
+        }
       } catch (error) {
         console.error('Error loading initial data:', error);
       }
@@ -328,7 +323,7 @@ const NewProjectForm = () => {
         <h1 className="form-heading">Create an Estimate</h1>
         <p className="form-subheading">Fill out the form below to create a new estimate</p>
         <div className="account-info">
-          <p className="account-detail">Account: {accountName}</p>
+          <p className="account-detail">Account: {accountSlug}</p>
           <p className="account-detail">User: {currentUser}</p>
         </div>
 
@@ -407,11 +402,13 @@ const NewProjectForm = () => {
             />
           </div>
 
-          <input 
-            type="hidden" 
-            name="payment-term" 
-            value={selectedPaymentTerm.id} 
-          />
+          {selectedPaymentTerm && (
+            <input 
+              type="hidden" 
+              name="payment-term" 
+              value={selectedPaymentTerm.id} 
+            />
+          )}
 
           <div className="input-group">
             <label>

@@ -2,31 +2,36 @@ import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
 const API_TOKEN = process.env.REACT_APP_SCOPSTACK_API_TOKEN;
-const ACCOUNT_SLUG = process.env.REACT_APP_SCOPSTACK_ACCOUNT_SLUG;
 const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
 const REFRESH_TOKEN_URL = 'https://app.scopestack.io/oauth/token'; // Updated refresh URL
 
 let accessToken = API_TOKEN; // Initial access token
 let refreshToken = localStorage.getItem('refreshToken'); // Retrieve refresh token from storage
 
-const apiScoped = axios.create({
-  baseURL: `https://api.scopestack.io/${ACCOUNT_SLUG}`,
-  headers: {
-    Authorization: `Bearer ${accessToken}`,
-    "Content-Type": "application/vnd.api+json",
-  },
-});
+// Function to create a new axios instance with dynamic base URL
+const createApiScopedInstance = (accountSlug) => {
+  return axios.create({
+    baseURL: `https://api.scopestack.io/${accountSlug}`,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/vnd.api+json",
+    },
+  });
+};
+
+// Initialize apiScoped with a default account slug
+let apiScoped = createApiScopedInstance(process.env.REACT_APP_SCOPSTACK_ACCOUNT_SLUG);
 
 // Function to refresh the access token
 const refreshAccessToken = async () => {
   try {
     const response = await axios.post(REFRESH_TOKEN_URL, {
-      grant_type: 'refresh_token', // Specify the grant type
-      refresh_token: refreshToken, // Include the refresh token
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
     });
-    accessToken = response.data.access_token; // Update access token
-    refreshToken = response.data.refresh_token; // Update refresh token if provided
-    localStorage.setItem('refreshToken', refreshToken); // Store new refresh token
+    accessToken = response.data.access_token;
+    refreshToken = response.data.refresh_token;
+    localStorage.setItem('refreshToken', refreshToken);
 
     // Update the Authorization header for apiScoped
     apiScoped.defaults.headers.Authorization = `Bearer ${accessToken}`;
@@ -34,17 +39,16 @@ const refreshAccessToken = async () => {
     return accessToken;
   } catch (error) {
     console.error('Failed to refresh access token:', error);
-    throw error; // Handle error appropriately
+    throw error;
   }
 };
 
 // Axios request interceptor
 apiScoped.interceptors.request.use(
   async (config) => {
-    // Check if the access token is expired
     if (isTokenExpired(accessToken)) {
-      accessToken = await refreshAccessToken(); // Refresh token if expired
-      config.headers.Authorization = `Bearer ${accessToken}`; // Update the header with the new token
+      accessToken = await refreshAccessToken();
+      config.headers.Authorization = `Bearer ${accessToken}`;
     }
     return config;
   },
@@ -55,12 +59,17 @@ apiScoped.interceptors.request.use(
 
 // Function to check if the token is expired
 const isTokenExpired = (token) => {
-  if (!token) return true; // If no token, consider it expired
+  if (!token) return true;
   const decoded = jwtDecode(token);
-  return decoded.exp * 1000 < Date.now(); // Check if the token is expired
+  return decoded.exp * 1000 < Date.now();
 };
 
-// ✅ Get Current User & Account Info
+// Function to update apiScoped with the correct account slug
+export const updateApiScopedInstance = (accountSlug) => {
+  apiScoped = createApiScopedInstance(accountSlug);
+};
+
+// Use this function after fetching the accountSlug
 export const getCurrentUserAndAccount = async () => {
   try {
     const response = await axios.get("https://api.scopestack.io/v1/me", {
@@ -70,8 +79,9 @@ export const getCurrentUserAndAccount = async () => {
       },
     });
 
-    const { "account-id": accountId, "account-slug": accountName, name: userName } = response.data.data.attributes;
-    return { accountId, accountName, userName };
+    const { "account-id": accountId, "account-slug": accountSlug, name: userName } = response.data.data.attributes;
+    updateApiScopedInstance(accountSlug); // Update apiScoped with the correct account slug
+    return { accountId, accountSlug, userName };
   } catch (error) {
     console.error("❌ Error fetching user/account details:", error);
     throw error;
@@ -127,10 +137,14 @@ export const fetchDefaultRateTable = async () => {
 };
 
 // Fetch the default payment term
-export const fetchDefaultPaymentTerm = async () => {
+export const fetchDefaultPaymentTerm = async (accountSlug) => {
   try {
-    const response = await apiScoped.get('/v1/payment-terms?filter[active]=true&include=account');
+    // Fetch all payment terms for the given account slug
+    const response = await apiScoped.get(`/v1/payment-terms?filter[active]=true&include=account`);
+
+    // Find the default payment term
     const defaultTerm = response.data.data.find(term => term.attributes.default === true);
+
     return defaultTerm ? defaultTerm.id : null;
   } catch (error) {
     console.error('❌ Error fetching default payment term:', error);
@@ -338,106 +352,24 @@ export const getProjectDocuments = async (projectId) => {
   }
 };
 
-// 3️⃣ Poll Document Status
-export const pollDocumentStatus = async (projectId, documentId, onComplete) => {
-  const maxRetries = 30; // 5 minutes maximum
-  let retries = 0;
-
-  const intervalId = setInterval(async () => {
-    retries += 1;
-    if (retries > maxRetries) {
-      console.error('❌ Document generation timed out after 5 minutes');
-      clearInterval(intervalId);
-      return;
-    }
-
-    try {
-      const projectDocs = await getProjectDocuments(projectId);
-      const document = projectDocs.find(
-        (doc) => doc.id === documentId && 
-        doc.attributes['document-type'] === 'sow'
-      );
-
-      if (document) {
-        console.log('📄 Document status:', document.attributes.status);
-        
-        if (document.attributes.status === 'finished' && 
-            document.attributes['document-url']) {
-          clearInterval(intervalId);
-          console.log('✅ Document ready:', document.attributes['document-url']);
-          if (onComplete) {
-            onComplete(document.attributes['document-url']);
-          } else {
-            window.open(document.attributes['document-url'], '_blank');
-          }
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error polling document status:', error);
-    }
-  }, 10000); // Poll every 10 seconds
-
-  // Return the interval ID so it can be cleared if needed
-  return intervalId;
-};
-
-// 4️⃣ Complete Document Workflow
-export const executeDocumentWorkflow = async (projectId) => {
+// Example function definitions
+export const searchClients = async (searchTerm) => {
   try {
-    // Generate document
-    const document = await createProjectDocument(projectId);
-    console.log('📄 Document generation started:', document);
-
-    if (!document || !document.id) {
-      throw new Error('Document creation failed - no document ID received');
-    }
-
-    // Start polling and return a promise that resolves when document is ready
-    return new Promise((resolve, reject) => {
-      pollDocumentStatus(projectId, document.id, (documentUrl) => {
-        resolve({ documentId: document.id, documentUrl });
-      });
-
-      // Timeout after 5 minutes
-      setTimeout(() => {
-        reject(new Error('Document generation timed out'));
-      }, 300000);
-    });
+    const response = await apiScoped.get(`/v1/clients?filter[name]=${searchTerm}`);
+    return response.data.data;
   } catch (error) {
-    console.error('❌ Error in document workflow:', error);
+    console.error("❌ Error fetching clients:", error);
     throw error;
   }
 };
 
-export const searchClients = async (searchTerm) => {
-  try {
-    const response = await apiScoped.get(`/v1/clients`, {
-      params: {
-        'filter[name]': searchTerm,
-        'filter[active]': true
-      },
-      headers: {
-        'Accept': 'application/vnd.api+json',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
-      }
-    });
-
-    return response.data;
-  } catch (error) {
-    console.error('Error searching clients:', error);
-    return { data: [] };
-  }
-};
-
-// ✅ Create a New Client
-export const createClient = async (name, accountId) => {
+export const createClient = async (clientName, accountId) => {
   try {
     const response = await apiScoped.post('/v1/clients', {
       data: {
         type: 'clients',
         attributes: {
-          name: name,
+          name: clientName,
           active: true
         },
         relationships: {
@@ -450,54 +382,31 @@ export const createClient = async (name, accountId) => {
         }
       }
     });
-    
     return response.data;
   } catch (error) {
-    console.error('❌ Error creating client:', error);
+    console.error("❌ Error creating client:", error);
     throw error;
   }
 };
 
-// Fetch Project Pricing
+export const executeDocumentWorkflow = async (projectId) => {
+  // Implement the function logic
+};
+
 export const fetchProjectPricing = async (projectId) => {
-  try {
-    const response = await apiScoped.get(`/v1/projects/${projectId}`);
-    const project = response.data.data;
-    return {
-      revenue: project.attributes['contract-revenue'],
-      cost: project.attributes['contract-cost'],
-      margin: project.attributes['contract-margin']
-    };
-  } catch (error) {
-    console.error("❌ Error fetching project pricing:", error);
-    throw error;
-  }
+  // Implement the function logic
 };
 
-// Fetch Project Services
 export const fetchProjectServices = async (projectId) => {
-  try {
-    const response = await apiScoped.get('/v1/project-services', {
-      params: {
-        'filter[project]': projectId,
-        'filter[active]': true,
-      },
-    });
-    return response.data; // Return the services data
-  } catch (error) {
-    console.error('Error fetching project services:', error.response ? error.response.data : error.message);
-    throw error;
-  }
+  // Implement the function logic
 };
 
-// Example function using GEMINI_API_KEY
-export const generateContentWithAI = async (inputText) => {
+export const generateContentWithAI = async (prompt) => {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
   try {
     const response = await axios.post(url, {
       contents: [{
-        parts: [{ text: inputText }],
+        parts: [{ text: prompt }],
       }],
     }, {
       headers: {
@@ -505,18 +414,10 @@ export const generateContentWithAI = async (inputText) => {
       },
     });
 
-    // Log the entire response to inspect its structure
-    console.log('AI API Response:', response.data);
-
-    // Extract the summary text from the response
-    const summary = response.data.candidates[0].content.parts[0].text; // Access the text property
+    const summary = response.data.candidates[0].content.parts[0].text;
     return summary;
   } catch (error) {
-    console.error('Error generating content with AI:', error.response ? error.response.data : error.message);
+    console.error('Error generating content with AI:', error);
     throw error;
   }
 };
-
-
-
-export default apiScoped;
