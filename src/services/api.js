@@ -391,11 +391,11 @@ export const executeDocumentWorkflow = async (projectId, accountSlug) => {
     console.log('Document creation initiated:', documentCreationResponse.data);
 
     // Step 3: Poll for the document status and URL
-    const maxAttempts = 10; // Maximum number of polling attempts
-    const delay = 1000; // Delay between attempts in milliseconds
+    const maxAttempts = 20; // Maximum number of polling attempts (increased from 10 to 20)
+    const delay = 2000; // Delay between attempts in milliseconds (2 seconds)
 
     const pollForDocument = async (attempt = 1) => {
-      console.log(`Polling attempt ${attempt} for project ID: ${projectId}`);
+      console.log(`Polling attempt ${attempt} of ${maxAttempts} for project ID: ${projectId}`);
       try {
         const documents = await getProjectDocuments(projectId);
         console.log(`Documents fetched:`, documents);
