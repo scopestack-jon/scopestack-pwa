@@ -13,6 +13,7 @@ import {
   fetchProjectPricing,
   generateContentWithAI,
   fetchProjectServices,
+  getProjectDocuments,
 } from '../services/api';
 import './NewProjectForm.css';
 import ExecutiveSummary from './ExecutiveSummary';
@@ -115,6 +116,11 @@ const NewProjectForm = () => {
         throw new Error('Account ID is required.');
       }
 
+      // Ensure accountSlug is available
+      if (!accountSlug) {
+        throw new Error('Account slug is missing.');
+      }
+
       // Handle client creation/selection
       let clientId;
       if (selectedClient) {
@@ -192,9 +198,14 @@ const NewProjectForm = () => {
 
         // Generate and poll for document
         setStatusMessage('Generating document...');
-        const documentResult = await executeDocumentWorkflow(project.data.id);
-        setDocumentUrl(documentResult.documentUrl);
-        setStatusMessage('Document ready!');
+        const documentResult = await executeDocumentWorkflow(project.data.id, accountSlug);
+
+        if (documentResult && documentResult.documentUrl) {
+          setDocumentUrl(documentResult.documentUrl);
+          setStatusMessage('Document ready!');
+        } else {
+          throw new Error('Failed to generate document. Document URL is missing.');
+        }
 
         // Fetch and display pricing
         const projectPricing = await fetchProjectPricing(project.data.id);
@@ -204,6 +215,10 @@ const NewProjectForm = () => {
         const services = await fetchProjectServices(project.data.id);
         setProjectServices(services);
         console.log('Fetched Services:', services);
+
+        // Fetch project documents
+        const documents = await getProjectDocuments(project.data.id);
+        console.log('Fetched Documents:', documents);
 
         // Generate executive summary after services are fetched
         if (!executiveSummaryGeneratedRef.current) {
@@ -563,7 +578,7 @@ const NewProjectForm = () => {
         {showSummary && (
           <ExecutiveSummary summary={executiveSummary} onClose={handleCloseSummary} />
         )}
-        {projectServices.length > 0 && (
+        {Array.isArray(projectServices) && projectServices.length > 0 && (
           <div>
             <h3>Project Services</h3>
             <ul>

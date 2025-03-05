@@ -316,7 +316,7 @@ export const executeSurveyWorkflow = async (projectId, questionnaireId, surveyDa
 // 1️⃣ Create Project Document
 export const fetchDocumentTemplates = async (accountSlug) => {
   try {
-    const response = await apiScoped.get(`/${accountSlug}/v1/document-templates?filter[active]=true`);
+    const response = await apiScoped.get(`/v1/document-templates?filter[active]=true`);
     return response.data.data;
   } catch (error) {
     console.error('❌ Error fetching document templates:', error);
@@ -324,9 +324,9 @@ export const fetchDocumentTemplates = async (accountSlug) => {
   }
 };
 
-export const createProjectDocument = async (projectId, accountSlug) => {
+export const executeDocumentWorkflow = async (projectId, accountSlug) => {
   try {
-    // Fetch document templates
+    // Step 1: Fetch document templates
     const templates = await fetchDocumentTemplates(accountSlug);
     if (!templates || templates.length === 0) {
       throw new Error('No document templates available.');
@@ -337,12 +337,15 @@ export const createProjectDocument = async (projectId, accountSlug) => {
     const templateName = templates[0].attributes.name;
     console.log(`Using template: ${templateName} (ID: ${templateId})`);
 
-    const response = await apiScoped.post("/v1/project-documents", {
+    // Step 2: Create the document
+    const documentCreationResponse = await apiScoped.post("/v1/project-documents", {
       data: {
         type: "project-documents",
         attributes: {
-          "template-id": templateId, // Use the first template ID
+          "template-id": templateId,
           "document-type": "sow",
+          "force-regeneration": true,
+          "generate-pdf": true,
         },
         relationships: {
           project: { 
@@ -354,9 +357,46 @@ export const createProjectDocument = async (projectId, accountSlug) => {
         },
       },
     });
-    return response.data.data;
+    console.log('Document creation initiated:', documentCreationResponse.data);
+
+    // Step 3: Poll for the document status and URL
+    const maxAttempts = 10; // Maximum number of polling attempts
+    const delay = 1000; // Delay between attempts in milliseconds
+
+    const pollForDocument = async (attempt = 1) => {
+      console.log(`Polling attempt ${attempt} for project ID: ${projectId}`);
+      try {
+        const documents = await getProjectDocuments(projectId);
+        console.log(`Documents fetched:`, documents);
+
+        if (documents && documents.length > 0) {
+          const document = documents[0];
+          const documentUrl = document.attributes['document-url'];
+          const status = document.attributes.status;
+
+          console.log(`Document status: ${status}, Document URL: ${documentUrl}`);
+
+          if (status === 'finished' || documentUrl) {
+            console.log(`Document URL found: ${documentUrl}`);
+            return { documentUrl };
+          }
+        }
+
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return pollForDocument(attempt + 1);
+        } else {
+          throw new Error('Document generation did not complete after multiple attempts.');
+        }
+      } catch (error) {
+        console.error('Error in document workflow:', error);
+        throw error;
+      }
+    };
+
+    return pollForDocument();
   } catch (error) {
-    console.error("❌ Error creating project document:", error.response?.data || error);
+    console.error('Error in document workflow:', error);
     throw error;
   }
 };
@@ -372,7 +412,7 @@ export const getProjectDocuments = async (projectId) => {
   }
 };
 
-// Example function definitions
+
 export const createClient = async (clientName, accountId) => {
   try {
     const response = await apiScoped.post('/v1/clients', {
@@ -399,9 +439,7 @@ export const createClient = async (clientName, accountId) => {
   }
 };
 
-export const executeDocumentWorkflow = async (projectId) => {
-  // Implement the function logic
-};
+
 
 export const fetchProjectPricing = async (projectId) => {
   // Implement the function logic
