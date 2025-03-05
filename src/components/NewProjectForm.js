@@ -88,6 +88,13 @@ const NewProjectForm = () => {
     setClientName(client.attributes.name);
     setSelectedClient(client);
     setFilteredClients([]);
+
+    // Set the MSA date if it exists
+    if (client.attributes['msa-date']) {
+      setMsaDate(client.attributes['msa-date']);
+    } else {
+      setMsaDate(''); // Clear the MSA date if not available
+    }
   };
 
   const handleAnswerChange = (questionSlug, value, questionId) => {

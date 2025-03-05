@@ -116,8 +116,18 @@ export const fetchQuestionnaireQuestions = async (questionnaireId) => {
 // ✅ Fetch Clients (for typeahead search)
 export const fetchClients = async (searchTerm) => {
   try {
-    const response = await apiScoped.get(`/v1/clients?filter[name]=${searchTerm}`);
-    return response.data.data;
+    const response = await apiScoped.get(`/v1/clients?filter[active]=true&include=contacts&filter[name]=${searchTerm}`);
+    return response.data.data.map(client => ({
+      id: client.id,
+      name: client.attributes.name, // Access name from attributes
+      msaDate: client.attributes['msa-date'],
+      contacts: client.relationships.contacts.data.map(contactRef => ({
+        id: contactRef.id,
+        name: contactRef.attributes.name,
+        email: contactRef.attributes.email,
+        phone: contactRef.attributes.phone,
+      })),
+    }));
   } catch (error) {
     console.error("❌ Error fetching clients:", error);
     throw error;

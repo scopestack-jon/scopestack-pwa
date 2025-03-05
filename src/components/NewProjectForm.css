@@ -116,6 +116,7 @@ select {
   color: var(--secondary-color);
   background-color: var(--white);
   outline: none;
+  font-family: Arial, sans-serif;
 }
 
 /* Placeholder styling to match mockup */
