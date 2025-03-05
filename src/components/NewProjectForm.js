@@ -63,7 +63,6 @@ const NewProjectForm = () => {
     setIsLoading(true);
     try {
       const response = await fetchClients(searchTerm.toLowerCase());
-      console.log('API Response:', response);
       setFilteredClients(response || []);
     } catch (error) {
       console.error('Error searching clients:', error);
@@ -307,22 +306,6 @@ const NewProjectForm = () => {
 
   return (
     <div className="form-container">
-      <header className="form-header">
-        <div className="status-bar">
-          <span className="time">9:41</span>
-          <div className="status-icons">
-            <span className="signal">●●●●</span>
-            <span className="wifi">●</span>
-            <span className="battery">●</span>
-          </div>
-        </div>
-        <img 
-          src={`${process.env.PUBLIC_URL}/assets/SS-Logo-Horiztonal-allwhite.png`}
-          alt="ScopeStack Logo" 
-          className="header-logo"
-        />
-      </header>
-      
       <form onSubmit={handleSubmit} className="form-content">
         <h1 className="form-heading">Create an Estimate</h1>
         <p className="form-subheading">Fill out the form below to create a new estimate</p>
@@ -333,7 +316,6 @@ const NewProjectForm = () => {
 
         <div className="form-section">
           <h2 className="section-header">Project Info</h2>
-          
           <div className="input-group">
             <label>
               <span className="required">*</span>
@@ -363,9 +345,7 @@ const NewProjectForm = () => {
                 placeholder="Enter client name"
                 required
               />
-              
               {isLoading && <div>Loading...</div>}
-              
               {filteredClients.length > 0 && (
                 <ul className="client-dropdown">
                   {filteredClients.map((client) => (
@@ -379,13 +359,11 @@ const NewProjectForm = () => {
                   ))}
                 </ul>
               )}
-              
               {clientName && filteredClients.length === 0 && !selectedClient && (
                 <div className="helper-text">
                   No existing clients found. A new client will be created.
                 </div>
               )}
-              
               {selectedClient && (
                 <div className="helper-text success">
                   Selected existing client: {selectedClient.attributes.name}
@@ -585,7 +563,6 @@ const NewProjectForm = () => {
         {showSummary && (
           <ExecutiveSummary summary={executiveSummary} onClose={handleCloseSummary} />
         )}
-        
         {projectServices.length > 0 && (
           <div>
             <h3>Project Services</h3>
