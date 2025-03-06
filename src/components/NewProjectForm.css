@@ -5,7 +5,17 @@
   --gray-border: #D7D7D7;
   --white: #FFFFFF;
   --error-color: #FD0300;
-  --font-family: 'Open Sans', sans-serif;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  
+  /* Typography scale */
+  --h1-size: 32px;
+  --h2-size: 28px;
+  --h3-size: 24px;
+  --h4-size: 20px;
+  --h5-size: 18px;
+  --body-size: 16px;
+  --label-size: 14px;
+  --small-size: 12px;
 }
 
 /* Mobile App Container */
@@ -17,6 +27,7 @@
   padding: 15px;
   background: var(--gray-light);
   position: relative;
+  font-family: var(--font-family);
 }
 
 /* Mobile Status Bar & Header */
@@ -54,51 +65,51 @@
   padding: 15px;
   border-radius: 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-family: var(--font-family);
 }
 
-/* Survey Title */
+/* Form Heading - using H1 style */
 .form-heading {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--secondary-color);
+  font-size: var(--h1-size);
+  font-weight: 600;
+  color: #333;
   margin-top: 0;
-  margin-bottom: 5px;
-  line-height: 1.4;
+  margin-bottom: 8px;
+  line-height: 1.2;
 }
 
+/* Form Subheading - using paragraph body style */
 .form-subheading {
-  font-size: 16px;
-  color: var(--secondary-color);
-  margin-bottom: 10px;
+  font-size: var(--body-size);
+  font-weight: normal;
+  color: #666;
+  margin-bottom: 24px;
   line-height: 1.5;
 }
 
-/* Section Headers */
+/* Section Headers - using H2 style */
 .section-header {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--secondary-color);
+  font-size: var(--h2-size);
+  font-weight: 600;
+  color: #333;
   margin-top: 0;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--gray-border);
+  border-bottom: 1px solid #eee;
 }
 
-/* Form Fields */
-.input-group {
-  margin-bottom: 10px;
-  width: 100%;
-  position: relative;
-}
-
+/* Form Labels - using Form label style */
 .input-group label {
   display: block;
-  margin-bottom: 3px;
+  margin-bottom: 6px;
   font-weight: 500;
-  color: var(--secondary-color);
+  color: #333;
+  font-size: var(--label-size);
+  line-height: 1.4;
+  text-align: left;
 }
 
-/* Input Styling */
+/* Form Inputs - using Form placeholder for sizing */
 .form-input,
 .form-select,
 input[type="text"],
@@ -107,70 +118,68 @@ input[type="tel"],
 input[type="date"],
 input[type="number"],
 select {
-  width: 85%;
-  height: 30px;
+  width: 100%;
+  height: 38px;
   padding: 8px 12px;
-  font-size: 14px;
-  line-height: 20px;
-  border: 1px solid var(--gray-border);
+  font-size: var(--label-size);
+  line-height: 1.4;
+  border: 1px solid #ddd;
   border-radius: 4px;
-  color: var(--secondary-color);
+  color: #333;
   background-color: var(--white);
   outline: none;
-  font-family: Arial, sans-serif;
-  min-height: 36px;
-  transition: all 0.3s;
+  font-family: var(--font-family);
+  transition: all 0.2s;
+  box-sizing: border-box;
 }
 
-/* Placeholder styling to match mockup */
+/* Placeholder styling - using Form placeholder style */
 .form-input::placeholder,
 input::placeholder {
-  color: #bfbfbf;
+  color: #aaa;
+  font-size: var(--label-size);
+  font-family: var(--font-family);
 }
 
 /* Required asterisk */
 .required {
-  color: var(--error-color);
+  color: #d14;
   margin-right: 4px;
 }
 
-/* Label text color */
-.input-group label {
-  color: var(--secondary-color);
-  font-size: 16px;
-  font-weight: 600;
-}
-
-/* Focus state */
+/* Focus state to match design system */
 .form-input:focus,
 input:focus,
 select:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+  border-color: #6a6a9f;
+  box-shadow: 0 0 0 1px rgba(106, 106, 159, 0.2);
   outline: 0;
 }
 
 /* Select specific styling */
 select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%231C2655' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' viewBox='0 0 12 6'%3E%3Cpath fill='%23333' d='M0 0l6 6 6-6z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 16px center;
-  padding-right: 40px;
+  background-position: right 12px center;
+  padding-right: 36px;
 }
 
 /* Make date input consistent with text inputs */
 input[type="date"] {
-  width: 85%;
-  height: 30px;
-  padding: 12px 16px;
-  font-size: 16px;
-  line-height: 20px;
-  border: 1px solid var(--gray-border);
-  border-radius: 8px;
-  color: var(--secondary-color);
+  width: 100%;
+  height: 38px;
+  padding: 8px 12px;
+  font-size: var(--label-size);
+  line-height: 1.4;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: #333;
   background-color: var(--white);
   outline: none;
+  font-family: var(--font-family);
+  transition: all 0.2s;
+  box-sizing: border-box;
   background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 2H4C2.89543 2 2 2.89543 2 4V12C2 13.1046 2.89543 14 4 14H12C13.1046 14 14 13.1046 14 12V4C14 2.89543 13.1046 2 12 2Z' stroke='%231C2655' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
@@ -192,28 +201,60 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 2H4C2.89543 2 2 2.89543 2 4V12C2 13.1046 2.89543 14 4 14H12C13.1046 14 14 13.1046 14 12V4C14 2.89543 13.1046 2 12 2Z' stroke='%231C2655' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
-  padding-right: 15px;  /* Make room for the icon */
+  padding-right: 36px;  /* Make room for the icon */
+}
+
+/* Form button styling */
+.form-button {
+  display: inline-block;
+  padding: 10px 16px;
+  font-size: var(--label-size);
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: white;
+  background-color: var(--primary-color);
+  transition: all 0.2s;
+  font-family: var(--font-family);
+}
+
+.form-button:hover {
+  background-color: #336a5d;
+}
+
+.form-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(65, 129, 114, 0.25);
+}
+
+.form-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 /* Button Group */
 .button-group {
   display: flex;
   gap: 12px;
-  margin-top: 24px;
-  padding: 16px;
-  position: sticky;
-  bottom: 0;
-  background: var(--white);
+  margin-top: 16px;
+  padding: 0;
 }
 
 .button {
   flex: 1;
-  padding: 10px 15px;
+  padding: 10px 16px;
   border-radius: 4px;
   font-weight: 500;
-  font-size: 16px;
+  font-size: var(--label-size);
   text-align: center;
-  transition: all 0.3s;
+  transition: all 0.2s;
+  font-family: var(--font-family);
 }
 
 .button.primary {
@@ -237,8 +278,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .status-container {
-  margin-top: 10px;
-  padding: 10px;
+  margin-top: 16px;
+  padding: 12px;
   background-color: #f6ffed;
   border: 1px solid #b7eb8f;
   border-radius: 4px;
@@ -248,31 +289,72 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .status-message {
-  font-size: 16px;
+  font-size: var(--body-size);
   color: #52c41a;
   font-weight: 500;
-  margin-bottom: 5px;
-}
-
-.document-link {
-  margin-top: 5px;
+  margin-bottom: 8px;
+  font-family: var(--font-family);
 }
 
 .document-link a {
   color: var(--primary-color);
   text-decoration: none;
   font-weight: 500;
+  font-size: var(--label-size);
   display: inline-flex;
   align-items: center;
-  padding: 5px 10px;
+  padding: 6px 12px;
   background-color: #e6f7ff;
   border: 1px solid #91d5ff;
   border-radius: 4px;
-  transition: all 0.3s;
+  transition: all 0.2s;
+  font-family: var(--font-family);
 }
 
-.document-link a:hover {
-  background-color: #bae7ff;
+/* Standardize text in lists */
+.services-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+  font-family: var(--font-family);
+}
+
+.service-item {
+  padding: 6px 0;
+  font-size: var(--body-size);
+  color: #333;
+  display: flex;
+  align-items: center;
+}
+
+/* Consistent form typography for modal */
+.prompt-editor-modal h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #333;
+  font-size: var(--h3-size);
+  font-weight: 600;
+  line-height: 1.2;
+  font-family: var(--font-family);
+}
+
+.prompt-instructions {
+  margin-bottom: 16px;
+  color: #666;
+  font-size: var(--body-size);
+  line-height: 1.5;
+  font-family: var(--font-family);
+}
+
+.prompt-textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: var(--font-family);
+  font-size: var(--label-size);
+  line-height: 1.5;
+  resize: vertical;
 }
 
 /* Mobile-first responsive design */
@@ -301,50 +383,53 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
-/* Account Info */
+/* Account Info - using paragraph body style */
 .account-info {
   display: flex;
   flex-wrap: wrap;
-  margin-bottom: 10px;
+  margin-bottom: 16px;
   padding: 8px;
   background-color: #f9f9f9;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--small-size);
 }
 
 .account-detail {
   margin-right: 20px;
   margin-bottom: 0;
+  font-size: var(--small-size);
 }
 
 /* Client Search - Updated styling */
 .client-search-container {
   position: relative;
+  margin-bottom: 8px;
 }
 
 .client-dropdown {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 2px);
   left: 0;
   right: 0;
-  background: var(--white);
-  border: 1px solid var(--gray-border);
-  border-radius: 8px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
   max-height: 200px;
   overflow-y: auto;
   z-index: 1000;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
   padding: 0;
   list-style: none;
 }
 
 .client-dropdown-item {
-  padding: 12px 16px;
+  padding: 8px 12px;
   cursor: pointer;
-  color: var(--secondary-color);
-  font-size: 14px;
+  color: #333;
+  font-size: var(--label-size);
   text-align: left;
-  border-bottom: 1px solid var(--gray-border);
+  border-bottom: 1px solid #eee;
+  font-family: var(--font-family);
 }
 
 .client-dropdown-item:last-child {
@@ -352,18 +437,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .client-dropdown-item:hover {
-  background-color: var(--gray-light);
+  background-color: #f5f5f5;
 }
 
 .helper-text {
-  margin-top: 8px;
-  font-size: 14px;
-  color: var(--secondary-color);
-  padding: 4px 8px;
+  margin-top: 4px;
+  font-size: var(--small-size);
+  color: #666;
+  padding: 2px 0;
+  font-family: var(--font-family);
 }
 
 .helper-text.success {
-  color: var(--primary-color);
+  color: #63C4AB;
 }
 
 /* Card Sections - Adjusted padding */
@@ -371,10 +457,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   display: flex;
   flex-direction: column;
   background: var(--white);
-  border-radius: 12px;
-  padding: 15px;
-  margin-bottom: 15px;
-  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1px solid #eee;
+  box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 /* Questionnaire Select Styling */
@@ -418,14 +505,15 @@ select.form-input option:first-child {
   box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05);
 }
 
+/* Pricing Section Header - using H3 style */
 .pricing-section h2 {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--secondary-color);
+  font-size: var(--h3-size);
+  font-weight: 600;
+  color: #333;
   margin-top: 0;
-  margin-bottom: 10px;
+  margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--gray-border);
+  border-bottom: 1px solid #eee;
 }
 
 .pricing-row {
@@ -435,14 +523,16 @@ select.form-input option:first-child {
   margin-bottom: 16px;
 }
 
+/* Pricing labels - using Form label style */
 .pricing-label {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--secondary-color);
+  font-size: var(--label-size);
+  font-weight: 500;
+  color: #333;
 }
 
+/* Pricing values - using paragraph body style with emphasis */
 .pricing-value {
-  font-size: 16px;
+  font-size: var(--body-size);
   font-weight: 600;
   text-align: right;
 }
@@ -471,4 +561,13 @@ select.form-input option:first-child {
 
 .executive-summary-content {
   max-height: 100%; /* Ensure content fits within the container */
+}
+
+/* Search input icon */
+.client-search-container input {
+  padding-left: 12px; /* Reduced from 30px to match other inputs */
+  background-image: none; /* Removed the search icon */
+  background-repeat: no-repeat;
+  background-position: 8px center;
+  background-size: 14px;
 } 

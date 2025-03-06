@@ -17,7 +17,6 @@ import {
   fetchSalesExecutives,
 } from '../services/api';
 import './NewProjectForm.css';
-import ExecutiveSummary from './ExecutiveSummary';
 
 // Define the default prompt template for executive summary generation
 const DEFAULT_PROMPT_TEMPLATE = `
@@ -79,7 +78,6 @@ const NewProjectForm = () => {
 
   const [projectServices, setProjectServices] = useState([]);
   const [executiveSummary, setExecutiveSummary] = useState('');
-  const [showSummary, setShowSummary] = useState(false);
 
   const [projectId, setProjectId] = useState(null);
 
@@ -95,6 +93,11 @@ const NewProjectForm = () => {
   const [filteredExecutives, setFilteredExecutives] = useState([]);
   const [selectedExecutive, setSelectedExecutive] = useState(null);
   const [isExecutiveLoading, setIsExecutiveLoading] = useState(false);
+
+  // Add this new ref to track the previous questionnaire
+  const prevQuestionnaireRef = useRef(null);
+  // Add ref to safely access latest answers without dependency
+  const answersRef = useRef({});
 
   // Load the saved prompt template from localStorage or use default
   useEffect(() => {
@@ -246,6 +249,11 @@ const NewProjectForm = () => {
     }
   };
 
+  // Update answersRef whenever answers change
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
   const handleAnswerChange = (questionSlug, value, questionId) => {
     setAnswers((prevAnswers) => ({
       ...prevAnswers,
@@ -290,8 +298,12 @@ const NewProjectForm = () => {
     setFilteredExecutives([]);
   };
 
+  // Add a reference to track if the form has been submitted
+  const formSubmittedRef = useRef(false);
+
   const handleSubmit = async (event) => {
     event.preventDefault();
+    formSubmittedRef.current = true; // Mark form as submitted
     try {
       setIsLoading(true);
       // Validate all required fields
@@ -375,7 +387,13 @@ const NewProjectForm = () => {
       setStatusMessage('Project created. Processing survey...');
 
       if (project.data && project.data.id) {
-        // Format the responses from the answers state
+        // Format survey questions and responses for the prompt
+        const surveyContext = Object.entries(answers).map(([questionSlug, answer]) => {
+          const question = questions.find(q => q.slug === questionSlug);
+          return `QUESTION: ${question.question}\nANSWER: ${answer}`;
+        }).join('\n\n');
+        
+        // Format the responses for the survey API call
         const formattedResponses = Object.entries(answers).map(([questionSlug, answer]) => {
           const question = questions.find(q => q.slug === questionSlug);
           return {
@@ -384,7 +402,7 @@ const NewProjectForm = () => {
             'answer': answer
           };
         });
-
+        
         // Create survey data with responses
         const surveyData = {
           name: `Survey for ${projectName}`,
@@ -431,12 +449,6 @@ const NewProjectForm = () => {
             // Generate executive summary after services are successfully fetched
             if (!executiveSummaryGeneratedRef.current) {
               try {
-                // Format survey questions and responses for the prompt
-                const surveyContext = Object.entries(answers).map(([questionSlug, answer]) => {
-                  const question = questions.find(q => q.slug === questionSlug);
-                  return `QUESTION: ${question.question}\nANSWER: ${answer}`;
-                }).join('\n\n');
-                
                 // Map services to a format useful for the AI prompt
                 const serviceDescriptions = services.data.map(service => ({
                   service_name: service.attributes.name,
@@ -469,7 +481,6 @@ const NewProjectForm = () => {
                   const summary = await generateContentWithAI(prompt);
                   console.log('Generated Summary:', summary);
                   setExecutiveSummary(summary);
-                  setShowSummary(true);
                   executiveSummaryGeneratedRef.current = true; // Mark as generated
                 } else {
                   console.log('No service descriptions available for AI summary generation');
@@ -494,70 +505,80 @@ const NewProjectForm = () => {
       }
     } catch (error) {
       console.error('Error in form submission:', error);
+      formSubmittedRef.current = false; // Reset if submission fails
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCloseSummary = () => {
-    setShowSummary(false);
-  };
-
-  // Add a function to regenerate the executive summary
   const regenerateExecutiveSummary = async () => {
-    if (!projectId || !projectServices || !projectServices.data) {
-      console.error('Cannot regenerate summary: missing project data');
-      return;
-    }
-
-    setIsLoading(true);
     try {
-      // Format survey questions and responses for the prompt
-      const surveyContext = Object.entries(answers).map(([questionSlug, answer]) => {
-        const question = questions.find(q => q.slug === questionSlug);
-        return `QUESTION: ${question.question}\nANSWER: ${answer}`;
-      }).join('\n\n');
+      setIsLoading(true);
       
-      // Map services to a format useful for the AI prompt
-      const serviceDescriptions = projectServices.data.map(service => ({
-        service_name: service.attributes.name,
-        quantity: service.attributes.quantity || 1,
-        hours: service.attributes['total-hours'] || 'Not specified',
-        description: service.attributes['service-description'] || 'No description available',
-        position: service.attributes.position || 0
-      }));
+      // Create a contact object from the form fields
+      const selectedContact = {
+        name: contactName,
+        email: contactEmail,
+        phone: contactPhone,
+        title: contactTitle
+      };
       
-      // Sort services by position to maintain logical ordering
-      serviceDescriptions.sort((a, b) => a.position - b.position);
+      // Gather all the project data for the prompt
+      const projectData = {
+        projectName,
+        selectedClient,
+        selectedContact,
+        selectedExecutive,
+        answers,
+        questions,
+        projectServices: projectServices,
+        pricing: pricing ? {
+          revenue: pricing.revenue,
+          cost: pricing.cost,
+          margin: pricing.margin
+        } : null
+      };
       
-      if (serviceDescriptions.length > 0) {
-        // Format service descriptions for the prompt
-        const formattedServices = serviceDescriptions.map(svc => 
-          `SERVICE: ${svc.service_name}
- QUANTITY: ${svc.quantity}
- HOURS: ${svc.hours}
- DESCRIPTION: ${svc.description}
-`).join('\n\n');
+      // Apply the prompt template with the project data
+      const prompt = applyPromptTemplate(promptTemplate, projectData);
+      
+      // Process the prompt to replace hour references with days/weeks in the text
+      const processedPrompt = prompt.replace(/(\d+)\s*hours?/gi, (match, hours) => {
+        const hoursNum = parseInt(hours, 10);
+        // Using 8-hour workdays and 5-day workweeks
+        const days = Math.floor(hoursNum / 8);
+        const remainingHours = hoursNum % 8;
         
-        // Create the prompt from the template
-        const prompt = applyPromptTemplate(promptTemplate, {
-          clientName,
-          projectName,
-          surveyContext,
-          serviceDescriptions: formattedServices
-        });
+        if (days < 1) return match; // Keep as hours if less than a day
         
-        const summary = await generateContentWithAI(prompt);
-        console.log('Regenerated Summary:', summary);
-        setExecutiveSummary(summary);
-        setShowSummary(true);
-      } else {
-        console.log('No service descriptions available for AI summary generation');
-        setExecutiveSummary('No services available to generate summary.');
-      }
+        const weeks = Math.floor(days / 5);
+        const remainingDays = days % 5;
+        
+        let result = '';
+        if (weeks > 0) {
+          result += `${weeks} week${weeks !== 1 ? 's' : ''}`;
+        }
+        
+        if (remainingDays > 0) {
+          if (result) result += ', ';
+          result += `${remainingDays} day${remainingDays !== 1 ? 's' : ''}`;
+        }
+        
+        if (remainingHours > 0 && days < 5) {
+          if (result) result += ', ';
+          result += `${remainingHours} hour${remainingHours !== 1 ? 's' : ''}`;
+        }
+        
+        return result;
+      });
+      
+      console.log('Generating summary with prompt:', processedPrompt);
+      const summary = await generateContentWithAI(processedPrompt);
+      
+      setExecutiveSummary(summary);
+      setIsLoading(false);
     } catch (error) {
-      console.error('Error regenerating executive summary:', error);
-    } finally {
+      console.error('Error generating executive summary:', error);
       setIsLoading(false);
     }
   };
@@ -609,13 +630,28 @@ const NewProjectForm = () => {
           
           // Set only the active questions in state
           setQuestions(activeQuestions);
-          setAnswers({});
+          
+          // Only clear answers when the questionnaire changes, not after form submission
+          // We'll use the ref to compare if questionnaire actually changed
+          const questionnaireChanged = prevQuestionnaireRef.current !== selectedQuestionnaire;
+          const currentAnswers = answersRef.current; // Access answers via ref
+          
+          if (questionnaireChanged && !formSubmittedRef.current) {
+            if (Object.keys(currentAnswers).length === 0 || 
+                (activeQuestions.length > 0 && !activeQuestions.some(q => currentAnswers[q.slug]))) {
+              setAnswers({});
+            }
+          }
+          
+          // Update the ref with current questionnaire
+          prevQuestionnaireRef.current = selectedQuestionnaire;
         } catch (error) {
           console.error('Error loading questions:', error);
         }
       }
     };
     loadQuestions();
+    // No need to include answers in dependencies, we use answersRef instead
   }, [selectedQuestionnaire]);
 
   // Modify loadProjectServices to prevent duplicate AI content generation
@@ -918,7 +954,7 @@ const NewProjectForm = () => {
             <h2 className="section-header">Responses</h2>
             {questions.map((question) => (
               <div key={question.slug} className="input-group">
-                <label>{question.question} {question.required && '*'}</label>
+                <label>{question.question} {question.required && <span className="required">*</span>}</label>
                 {Array.isArray(question['select-options']) && question['select-options'].length > 0 ? (
                   <select
                     className="form-input"
@@ -966,9 +1002,39 @@ const NewProjectForm = () => {
           </div>
         )}
 
+        {/* Always display Executive Summary when it's available - moved above Financials */}
+        {executiveSummary && (
+          <div className="form-section executive-summary-section">
+            <h3>Executive Summary</h3>
+            <div className="executive-summary-content">
+              {executiveSummary.split('\n').map((paragraph, index) => (
+                paragraph.trim() ? <p key={index}>{paragraph}</p> : null
+              ))}
+            </div>
+            <div className="executive-summary-actions">
+              <button 
+                type="button" 
+                className="form-button secondary"
+                onClick={() => setShowPromptEditor(true)}
+                title="Edit AI Prompt Template"
+              >
+                Edit Prompt
+              </button>
+              <button 
+                type="button" 
+                className="form-button primary"
+                onClick={regenerateExecutiveSummary}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Regenerating...' : 'Regenerate Summary'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {pricing && (
           <div className="pricing-section">
-            <h2>Financials</h2>
+            <h3>Financials</h3>
             <div className="pricing-row">
               <span className="pricing-label">Revenue</span>
               <span className="pricing-value revenue">
@@ -1000,19 +1066,10 @@ const NewProjectForm = () => {
           </div>
         )}
 
-        {showSummary && (
-          <ExecutiveSummary 
-            summary={executiveSummary} 
-            onClose={handleCloseSummary} 
-            onRegenerate={regenerateExecutiveSummary}
-            onEditPrompt={() => setShowPromptEditor(true)}
-            isLoading={isLoading}
-          />
-        )}
-        
+        {/* Project Services section hidden for now 
         {projectServices && projectServices.data && Array.isArray(projectServices.data) && projectServices.data.length > 0 && (
           <div className="form-section pricing-section">
-            <h2>Project Services</h2>
+            <h3>Project Services</h3>
             <ul className="services-list">
               {projectServices.data.map(service => (
                 <li key={service.id} className="service-item">
@@ -1023,12 +1080,13 @@ const NewProjectForm = () => {
             </ul>
           </div>
         )}
+        */}
 
         {/* Prompt Editor Modal */}
         {showPromptEditor && (
           <div className="modal-overlay">
             <div className="prompt-editor-modal">
-              <h2>Edit Executive Summary Prompt</h2>
+              <h3>Edit Executive Summary Prompt</h3>
               <p className="prompt-instructions">
                 Customize the AI prompt template. Use these placeholders:
                 <ul>
@@ -1569,6 +1627,55 @@ const styles = `
   .account-info {
     margin-bottom: 10px !important;
     padding: 8px !important;
+  }
+
+  /* Executive Summary Section Styles */
+  .executive-summary-section {
+    margin-top: 15px !important;
+    background-color: #f9f9f9;
+    border-left: 3px solid #52c41a;
+  }
+  
+  .executive-summary-content {
+    padding: 10px;
+    background-color: white;
+    border: 1px solid #e8e8e8;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  
+  .executive-summary-content p {
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  
+  .executive-summary-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  
+  .form-button.secondary {
+    background-color: #f0f0f0;
+    border: 1px solid #d9d9d9;
+    color: #555;
+  }
+  
+  .form-button.secondary:hover {
+    background-color: #e0e0e0;
+  }
+  
+  .form-button.primary {
+    background-color: #52c41a;
+    border: 1px solid #52c41a;
+    color: white;
+  }
+  
+  .form-button.primary:hover {
+    background-color: #389e0d;
   }
 `;
 
