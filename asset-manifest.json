@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/scopestack-pwa/static/css/main.d803a619.css",
-    "main.js": "/scopestack-pwa/static/js/main.fc122edb.js",
+    "main.js": "/scopestack-pwa/static/js/main.fe470211.js",
     "index.html": "/scopestack-pwa/index.html",
     "main.d803a619.css.map": "/scopestack-pwa/static/css/main.d803a619.css.map",
-    "main.fc122edb.js.map": "/scopestack-pwa/static/js/main.fc122edb.js.map"
+    "main.fe470211.js.map": "/scopestack-pwa/static/js/main.fe470211.js.map"
   },
   "entrypoints": [
     "static/css/main.d803a619.css",
-    "static/js/main.fc122edb.js"
+    "static/js/main.fe470211.js"
   ]
 }
