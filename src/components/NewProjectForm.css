@@ -570,4 +570,127 @@ select.form-input option:first-child {
   background-repeat: no-repeat;
   background-position: 8px center;
   background-size: 14px;
+}
+
+.update-generate-button {
+  background-color: #2c6e49; /* Darker green */
+  color: white;
+  font-weight: bold;
+  margin-top: 0; /* Remove top margin */
+  padding: 12px 20px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.update-generate-button:hover:not(:disabled) {
+  background-color: #3a8a5f; /* Slightly lighter on hover */
+}
+
+.update-generate-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Add separation between buttons */
+.executive-summary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.executive-summary-buttons {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  .executive-summary-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+}
+
+/* Standardize button sizes in executive summary */
+.executive-summary-buttons .form-button,
+.executive-summary-buttons .open-document-button {
+  height: auto;
+  min-height: 48px;
+  width: 100%;
+  padding: 12px 20px;
+  margin: 0;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@media (min-width: 768px) {
+  .executive-summary-buttons .form-button,
+  .executive-summary-buttons .open-document-button {
+    min-width: 180px;
+  }
+}
+
+/* Ensure consistent styling for all action buttons */
+.executive-summary-actions .form-button,
+.executive-summary-actions .open-document-button {
+  flex: 1;
+  margin: 0;
+  padding: 12px 20px;
+  font-weight: bold;
+  height: auto;
+  width: 100%;
+}
+
+.open-document-button {
+  /* Only keep specific overrides, rely on form-button primary for colors */
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.open-document-button:hover {
+  text-decoration: none;
+}
+
+/* Make all buttons in the executive summary actions consistent */
+.executive-summary-actions button,
+.executive-summary-actions a {
+  width: 100%; /* Make all buttons and links take full width */
+}
+
+@media (min-width: 768px) {
+  .executive-summary-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .executive-summary-actions button,
+  .executive-summary-actions a {
+    width: auto; /* On larger screens, let buttons take natural width */
+    flex: 1 1 0;
+    min-width: 160px; /* Ensure minimum width for readability */
+    max-width: 240px; /* Prevent buttons from getting too wide */
+  }
+  
+  /* Make sure document success message is full width */
+  .executive-summary-actions .document-success-message {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+}
+
+.document-success-message {
+  font-size: var(--small-size);
+  color: #2c6e49; /* Match update-generate-button color */
+  background-color: rgba(44, 110, 73, 0.1); /* Light green background */
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-top: 8px;
+  text-align: center;
+  font-style: italic;
 } 

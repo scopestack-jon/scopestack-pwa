@@ -15,6 +15,7 @@ import {
   fetchProjectServices,
   getProjectDocuments,
   fetchSalesExecutives,
+  updateProjectExecutiveSummary,
 } from '../services/api';
 import './NewProjectForm.css';
 
@@ -98,6 +99,9 @@ const NewProjectForm = () => {
   const prevQuestionnaireRef = useRef(null);
   // Add ref to safely access latest answers without dependency
   const answersRef = useRef({});
+
+  // Add a new state for document success message
+  const [documentSuccessMessage, setDocumentSuccessMessage] = useState('');
 
   // Load the saved prompt template from localStorage or use default
   useEffect(() => {
@@ -422,7 +426,8 @@ const NewProjectForm = () => {
 
         if (documentResult && documentResult.documentUrl) {
           setDocumentUrl(documentResult.documentUrl);
-          setStatusMessage('Document ready!');
+          setStatusMessage(''); // Clear status message instead of showing "Document ready!"
+          setDocumentSuccessMessage('Document successfully generated! Use the button above to regenerate if needed.');
         } else {
           throw new Error('Failed to generate document. Document URL is missing.');
         }
@@ -681,6 +686,83 @@ const NewProjectForm = () => {
       loadProjectServices(projectId);
     }
   }, [projectId, loadProjectServices]);
+
+  // Function to update the executive summary and generate document
+  const handleUpdateSummaryAndGenerateDocument = async () => {
+    try {
+      setIsLoading(true);
+      setStatusMessage('Updating executive summary and generating document...');
+      
+      // Check if we have a project ID and executive summary
+      if (!projectId) {
+        setStatusMessage('Error: No project found to update.');
+        return;
+      }
+      
+      if (!executiveSummary) {
+        setStatusMessage('Error: No executive summary to update.');
+        return;
+      }
+      
+      // First update the project with the current executive summary
+      await updateProjectExecutiveSummary(projectId, executiveSummary, accountSlug);
+      setStatusMessage('Executive summary updated. Initiating document generation...');
+      
+      // Then generate the document
+      const documentResult = await executeDocumentWorkflow(projectId, accountSlug);
+      
+      if (documentResult) {
+        setStatusMessage('Document generation initiated successfully. Checking status...');
+        // Start polling for document status
+        pollDocumentStatus(projectId);
+      } else {
+        setStatusMessage('Failed to initiate document generation.');
+      }
+    } catch (error) {
+      console.error('Error updating summary and generating document:', error);
+      setStatusMessage(`Error: ${error.message || 'Unknown error occurred'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Function to poll for document status
+  const pollDocumentStatus = async (projectId) => {
+    try {
+      const documents = await getProjectDocuments(projectId);
+      
+      if (documents && documents.length > 0) {
+        const document = documents[0];
+        const documentUrl = document.attributes['document-url'];
+        const status = document.attributes.status;
+        
+        if (documentUrl) {
+          setDocumentUrl(documentUrl);
+          setStatusMessage(''); // Clear the status message instead of showing "Document is ready!"
+          setDocumentSuccessMessage('Document successfully generated! Use the button above to regenerate if needed.');
+          return; // Document is ready, stop polling
+        } else if (status === 'processing' || status === 'pending') {
+          setStatusMessage(`Document is being generated (Status: ${status}). Checking again in 5 seconds...`);
+          setDocumentSuccessMessage('');
+          // Check again in 5 seconds
+          setTimeout(() => pollDocumentStatus(projectId), 5000);
+        } else if (status === 'failed') {
+          setStatusMessage('Document generation failed. Please try again.');
+          setDocumentSuccessMessage('');
+        } else {
+          setStatusMessage(`Document status: ${status}. Please check back later.`);
+          setDocumentSuccessMessage('');
+        }
+      } else {
+        setStatusMessage('No document found. Document generation may have failed.');
+        setDocumentSuccessMessage('');
+      }
+    } catch (error) {
+      console.error('Error checking document status:', error);
+      setStatusMessage('Error checking document status. Please try again later.');
+      setDocumentSuccessMessage('');
+    }
+  };
 
   return (
     <div className="form-container">
@@ -983,22 +1065,17 @@ const NewProjectForm = () => {
           </div>
         )}
 
-        <button type="submit" className="form-button" disabled={isLoading}>
-          {isLoading ? 'Processing...' : 'Create Project'}
-        </button>
+        {!projectId && (
+          <button type="submit" className="form-button" disabled={isLoading}>
+            {isLoading ? 'Processing...' : 'Create Scope'}
+          </button>
+        )}
 
-        {statusMessage && (
+        {statusMessage && !documentUrl && (
           <div className="status-container">
             <div className="status-message">
               {statusMessage}
             </div>
-            {documentUrl && (
-              <div className="document-link">
-                <a href={documentUrl} target="_blank" rel="noopener noreferrer">
-                  Open Document
-                </a>
-              </div>
-            )}
           </div>
         )}
 
@@ -1012,22 +1089,50 @@ const NewProjectForm = () => {
               ))}
             </div>
             <div className="executive-summary-actions">
-              <button 
-                type="button" 
-                className="form-button secondary"
-                onClick={() => setShowPromptEditor(true)}
-                title="Edit AI Prompt Template"
-              >
-                Edit Prompt
-              </button>
-              <button 
-                type="button" 
-                className="form-button primary"
-                onClick={regenerateExecutiveSummary}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Regenerating...' : 'Regenerate Summary'}
-              </button>
+              <div className="executive-summary-buttons">
+                <button 
+                  type="button" 
+                  className="form-button secondary"
+                  onClick={() => setShowPromptEditor(true)}
+                  title="Edit AI Prompt Template"
+                >
+                  Edit Prompt
+                </button>
+                <button 
+                  type="button" 
+                  className="form-button primary"
+                  onClick={regenerateExecutiveSummary}
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Regenerating...' : 'Regenerate Summary'}
+                </button>
+                {projectId && (
+                  <button 
+                    type="button" 
+                    className="form-button primary update-generate-button"
+                    onClick={handleUpdateSummaryAndGenerateDocument}
+                    disabled={isLoading}
+                    title={documentUrl ? "Update the project with this executive summary and regenerate document" : "Update the project with this executive summary and generate a document"}
+                  >
+                    {isLoading ? 'Processing...' : documentUrl ? 'Update & Regenerate Document' : 'Update & Generate Document'}
+                  </button>
+                )}
+                {documentUrl && (
+                  <a 
+                    href={documentUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="form-button primary open-document-button"
+                  >
+                    Open Document
+                  </a>
+                )}
+              </div>
+              {documentSuccessMessage && (
+                <div className="document-success-message">
+                  {documentSuccessMessage}
+                </div>
+              )}
             </div>
           </div>
         )}

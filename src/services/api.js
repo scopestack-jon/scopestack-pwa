@@ -551,3 +551,33 @@ export const generateContentWithAI = async (prompt) => {
     throw error;
   }
 };
+
+// Function to update a project's executive summary
+export const updateProjectExecutiveSummary = async (projectId, summary, accountSlug) => {
+  try {
+    const response = await axios({
+      method: 'PATCH',
+      url: `https://api.scopestack.io/${accountSlug}/v1/projects/${projectId}`,
+      headers: {
+        'Authorization': `Bearer ${API_TOKEN}`,
+        'Content-Type': 'application/vnd.api+json',
+        'Accept': 'application/vnd.api+json'
+      },
+      data: {
+        data: {
+          id: projectId,
+          type: 'projects',
+          attributes: {
+            'executive-summary': summary
+          }
+        }
+      }
+    });
+    
+    console.log('Successfully updated project executive summary');
+    return response.data;
+  } catch (error) {
+    console.error('Error updating project executive summary:', error);
+    throw error;
+  }
+};
